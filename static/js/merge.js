@@ -19,9 +19,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function addPdfBlock() {
         const clone = pdfBlockTemplate.content.cloneNode(true);
         const block = clone.querySelector('.pdf-block');
-        
+
         block.dataset.id = `block-${blockCount}`;
-        
+
         const fileInput = block.querySelector('.pdf-file-input');
         const nameSpan = block.querySelector('.file-name');
         const labelBtn = block.querySelector('label.btn');
@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const blocks = Array.from(pdfBlocksContainer.children);
         const fileInputs = blocks.map(b => b.querySelector('.pdf-file-input'));
-        
+
         // Validation
         let allValid = true;
         fileInputs.forEach(input => {
@@ -116,10 +116,10 @@ document.addEventListener('DOMContentLoaded', () => {
             a.download = 'merged_document.pdf';
             document.body.appendChild(a);
             a.click();
-            
+
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
-            
+
             window.showToast?.('PDFs merged successfully!', 'success');
 
         } catch (error) {
