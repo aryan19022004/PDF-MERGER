@@ -145,10 +145,6 @@ body {
             <i class="fa-solid fa-t"></i> Add Text
         </button>
         
-        <button id="add-pages-btn" class="btn btn-primary btn-sm" disabled>
-            <i class="fa-solid fa-list-ol"></i> Add Page Numbers
-        </button>
-
         <button id="save-pdf-btn" class="btn btn-success btn-sm" disabled>
             <span class="btn-text"><i class="fa-solid fa-download"></i> Export PDF</span>
             <svg class="spinner hidden" viewBox="0 0 50 50" style="width:16px;height:16px;vertical-align:middle;margin-left:5px;"><circle cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke="#fff"></circle></svg>
@@ -202,61 +198,6 @@ body {
         <div style="width: 1px; height: 20px; background: var(--border); margin: 0 5px;"></div>
         
         <button id="delete-page-btn" class="btn btn-sm btn-outline-danger" title="Delete Current Page"><i class="fa-solid fa-trash"></i> Delete Page</button>
-    </div>
-</div>
-
-<!-- Page Number Modal -->
-<div id="page-number-modal" class="modal hidden" style="position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 1050; display: flex; align-items: center; justify-content: center;">
-    <div class="modal-content" style="background: white; border-radius: var(--radius-lg); width: 90%; max-width: 450px; display: flex; flex-direction: column;">
-        <div class="modal-header p-4 border-bottom d-flex justify-content-between align-items-center" style="border-bottom: 1px solid var(--border);">
-            <h4 class="m-0"><i class="fa-solid fa-list-ol text-primary"></i> Add Page Numbers</h4>
-            <button id="close-pagenum-modal" class="btn-icon"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div class="modal-body p-4">
-            <div style="margin-bottom: 1rem;">
-                <label style="display:block; font-weight:500; margin-bottom:5px;">Pages to Number</label>
-                <input type="text" id="pagenum-range" placeholder="e.g. 1-10, 2- (Leave empty for all)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
-                <small class="text-muted">Type "2-" to skip the first cover page!</small>
-            </div>
-            
-            <div style="margin-bottom: 1rem; display: flex; gap: 10px;">
-                <div style="flex: 1;">
-                    <label style="display:block; font-weight:500; margin-bottom:5px;">Format / Prefix</label>
-                    <input type="text" id="pagenum-prefix" value="Page " placeholder="e.g. Page " style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
-                </div>
-                <div style="flex: 1;">
-                    <label style="display:block; font-weight:500; margin-bottom:5px;">Start Count At</label>
-                    <input type="number" id="pagenum-start" value="1" min="1" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
-                </div>
-            </div>
-
-            <div style="margin-bottom: 1rem; display: flex; gap: 10px;">
-                <div style="flex: 1;">
-                    <label style="display:block; font-weight:500; margin-bottom:5px;">Position</label>
-                    <select id="pagenum-pos" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
-                        <option value="bottom-center" selected>Bottom Center</option>
-                        <option value="bottom-right">Bottom Right</option>
-                        <option value="top-right">Top Right</option>
-                    </select>
-                </div>
-                <div style="display: flex; gap: 10px; flex: 1;">
-                    <div style="flex:1;">
-                        <label style="display:block; font-weight:500; margin-bottom:5px;">Size</label>
-                        <input type="number" id="pagenum-size" value="12" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
-                    </div>
-                    <div>
-                        <label style="display:block; font-weight:500; margin-bottom:5px;">Color</label>
-                        <input type="color" id="pagenum-color" value="#000000" style="width: 38px; height: 38px; padding: 0; border: none; cursor: pointer;">
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="modal-footer p-4 border-top text-end" style="border-top: 1px solid var(--border);">
-            <button id="apply-pagenum-btn" class="btn btn-primary" style="width: 100%;">
-                <span class="btn-text">Apply Page Numbers</span>
-                <svg class="spinner hidden" viewBox="0 0 50 50" style="width:16px;height:16px;vertical-align:middle;margin-left:5px;"><circle cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke="#fff"></circle></svg>
-            </button>
-        </div>
     </div>
 </div>
 

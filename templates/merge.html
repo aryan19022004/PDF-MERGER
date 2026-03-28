@@ -4,14 +4,12 @@
 {% block content %}
 <div class="text-center mb-8 px-4">
     <h1 class="text-4xl md:text-5xl font-extrabold font-heading text-slate-800 mb-4 text-gradient">Merge PDF</h1>
-    <p class="text-[17px] text-slate-500 max-w-2xl mx-auto">Combine multiple PDFs in the exact order you want. Drag and
-        drop the cards below to re-arrange headers!</p>
+    <p class="text-[17px] text-slate-500 max-w-2xl mx-auto">Combine multiple PDFs in the exact order you want. Drag and drop the cards below to re-arrange headers!</p>
 </div>
 
 <div class="max-w-[800px] w-full mx-auto px-4">
-    <form id="merge-form" action="/merge" method="POST" enctype="multipart/form-data"
-        class="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl border border-slate-100 p-6 md:p-8">
-
+    <form id="merge-form" action="/merge" method="POST" enctype="multipart/form-data" class="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl border border-slate-100 p-6 md:p-8">
+        
         <h4 class="text-lg font-bold text-slate-800 mb-4 pb-3 border-b border-slate-100 flex items-center gap-2">
             <i class="fa-solid fa-layer-group text-indigo-400"></i> Document Sequence
         </h4>
@@ -21,15 +19,13 @@
         </div>
 
         <div class="text-center mb-8">
-            <button type="button" id="add-pdf-btn"
-                class="px-6 py-3 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold rounded-xl border border-slate-200 transition-colors inline-flex items-center justify-center gap-2">
+            <button type="button" id="add-pdf-btn" class="px-6 py-3 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold rounded-xl border border-slate-200 transition-colors inline-flex items-center justify-center gap-2">
                 <i class="fa-solid fa-plus text-sm"></i> Add Another Document
             </button>
         </div>
 
         <div class="flex justify-center border-t border-slate-100 pt-6">
-            <button type="submit" id="submit-btn"
-                class="w-full sm:w-auto px-10 py-4 bg-primary hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/20 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 text-lg">
+            <button type="submit" id="submit-btn" class="w-full sm:w-auto px-10 py-4 bg-primary hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/20 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 text-lg">
                 <span class="btn-text">Merge PDFs</span>
                 <i class="fa-solid fa-arrow-right-long text-sm ms-1"></i>
                 <svg class="spinner hidden w-5 h-5 ml-2" viewBox="0 0 50 50">
@@ -42,40 +38,30 @@
 
 <!-- Template for a PDF Block -->
 <template id="pdf-block-template">
-    <div
-        class="pdf-block flex flex-col md:flex-row items-start md:items-center gap-4 bg-slate-50 border border-slate-200 p-4 rounded-xl group hover:border-indigo-300 transition-colors">
-
+    <div class="pdf-block flex flex-col md:flex-row items-start md:items-center gap-4 bg-slate-50 border border-slate-200 p-4 rounded-xl group hover:border-indigo-300 transition-colors">
+        
         <!-- Drag Handle -->
-        <div class="drag-handle cursor-grab text-slate-400 hover:text-indigo-500 p-2 hidden md:block"
-            title="Drag to reorder">
+        <div class="drag-handle cursor-grab text-slate-400 hover:text-indigo-500 p-2 hidden md:block" title="Drag to reorder">
             <i class="fa-solid fa-grip-vertical text-lg"></i>
         </div>
-
+        
         <!-- File Input Area -->
         <div class="file-input-wrapper flex-1 w-full flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <label
-                class="px-4 py-2 bg-white border border-slate-200 rounded-lg font-medium text-slate-700 hover:bg-slate-50 hover:border-indigo-300 cursor-pointer transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap">
+            <label class="px-4 py-2 bg-white border border-slate-200 rounded-lg font-medium text-slate-700 hover:bg-slate-50 hover:border-indigo-300 cursor-pointer transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap">
                 <i class="fa-solid fa-folder-open text-indigo-500"></i> Choose PDF
                 <input type="file" class="pdf-file-input hidden" accept="application/pdf" required>
             </label>
-            <span class="file-name text-slate-500 font-medium truncate max-w-[200px] lg:max-w-[300px]">No file
-                chosen</span>
+            <span class="file-name text-slate-500 font-medium truncate max-w-[200px] lg:max-w-[300px]">No file chosen</span>
         </div>
-
+        
         <!-- Range Input Area -->
-        <div
-            class="range-wrapper flex items-center gap-3 w-full md:w-auto bg-white p-2 md:p-0 md:bg-transparent rounded-lg border border-slate-200 md:border-none">
-            <label class="text-sm font-semibold text-slate-500 whitespace-nowrap"><i
-                    class="fa-regular fa-file-lines mr-1"></i> Pages:</label>
-            <input type="text"
-                class="range-input w-full md:w-28 px-3 py-1.5 rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-sm transition-all text-slate-700"
-                placeholder="1-5, 8">
+        <div class="range-wrapper flex items-center gap-3 w-full md:w-auto bg-white p-2 md:p-0 md:bg-transparent rounded-lg border border-slate-200 md:border-none">
+            <label class="text-sm font-semibold text-slate-500 whitespace-nowrap"><i class="fa-regular fa-file-lines mr-1"></i> Pages:</label>
+            <input type="text" class="range-input w-full md:w-28 px-3 py-1.5 rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-sm transition-all text-slate-700" placeholder="1-5, 8">
         </div>
 
         <!-- Remove Button -->
-        <button type="button"
-            class="remove-block-btn w-10 h-10 shrink-0 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors flex items-center justify-center absolute top-4 right-4 md:relative md:top-auto md:right-auto"
-            title="Remove PDF block">
+        <button type="button" class="remove-block-btn w-10 h-10 shrink-0 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors flex items-center justify-center absolute top-4 right-4 md:relative md:top-auto md:right-auto" title="Remove PDF block">
             <i class="fa-solid fa-trash"></i>
         </button>
     </div>
