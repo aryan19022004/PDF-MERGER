@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block title %}Edit PDF - My PDF{% endblock %}
+
+{% block content %}
+<div class="text-center mb-4">
+    <h1 class="text-gradient">Edit PDF</h1>
+    <p class="text-muted">Add text, change styling, and manage pages directly in your browser.</p>
+</div>
+
+<div class="container-fluid max-w-7xl mx-auto px-4 pb-12">
+    <!-- Toolbar -->
+    <div class="bg-white rounded-lg shadow-sm border p-3 mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3" style="border: 1px solid var(--border);">
+        <div class="d-flex align-items-center gap-3">
+            <label class="btn btn-primary m-0" style="cursor: pointer;">
+                <i class="fa-solid fa-folder-open"></i> Open PDF
+                <input type="file" id="edit-pdf-input" accept="application/pdf" class="hidden">
+            </label>
+            <span id="edit-file-name" class="text-muted font-medium">No file selected</span>
+        </div>
+        
+        <!-- Text Styling Tools -->
+        <div id="text-tools" class="d-flex align-items-center gap-2 opacity-50 pe-none transition" style="pointer-events: none;">
+            <select id="font-family" class="form-select" style="padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-sm); outline: none;">
+                <option value="helvetica" selected>Helvetica</option>
+                <option value="times">Times</option>
+                <option value="courier">Courier</option>
+            </select>
+            <input type="number" id="font-size" value="12" style="width: 70px; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-sm); outline: none;">
+            <input type="color" id="text-color" value="#000000" style="width: 40px; height: 38px; padding: 0; border: none; cursor: pointer;">
+            
+            <div class="btn-group" style="display: flex; gap: 0.25rem;">
+                <button type="button" id="btn-bold" class="btn btn-secondary small-btn" title="Bold"><b>B</b></button>
+                <button type="button" id="btn-italic" class="btn btn-secondary small-btn" title="Italic"><i>I</i></button>
+                <button type="button" id="btn-underline" class="btn btn-secondary small-btn" title="Underline"><u>U</u></button>
+            </div>
+            
+            <div style="width: 1px; height: 30px; background: var(--border); margin: 0 0.5rem;"></div>
+            
+            <button type="button" id="delete-text-btn" class="btn-icon" title="Delete Selected Text" style="color: var(--error);">
+                <i class="fa-solid fa-trash"></i>
+            </button>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button id="manage-pages-btn" class="btn btn-secondary" disabled>
+                <i class="fa-solid fa-layer-group"></i> Organize Pages
+            </button>
+            <button id="save-pdf-btn" class="btn btn-success" disabled style="background: var(--success); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: var(--radius-full); font-weight: 600; cursor: pointer;">
+                <span class="btn-text"><i class="fa-solid fa-download"></i> Save & Download</span>
+                <svg class="spinner hidden" viewBox="0 0 50 50" style="width: 20px; height: 20px;"><circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke="#fff"></circle></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div class="d-flex gap-4" style="height: 75vh; align-items: stretch; display: flex;">
+        <!-- Thumbnail Sidebar -->
+        <div class="bg-surface rounded-lg border p-3 flex-shrink-0 hide-scrollbar" style="width: 200px; overflow-y: auto; border: 1px solid var(--border); background: var(--surface);">
+            <div id="page-list" class="d-flex flex-column gap-3">
+                <div class="text-center text-muted p-4" style="font-size: 0.9rem;">
+                    Upload a PDF to see thumbnails
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas Area -->
+        <div class="flex-grow-1 bg-surface rounded-lg border position-relative overflow-auto" id="canvas-scroll-area" style="border: 1px solid var(--border); background: #eef2f6; display: flex; justify-content: center; overflow: auto; padding: 2rem;">
+            <div id="canvas-container" style="position: relative; box-shadow: var(--shadow-lg); background: white;">
+                <canvas id="pdf-canvas"></canvas>
+                <div id="text-layer" class="textLayer" style="position: absolute; top:0; left:0; right:0; bottom:0; overflow: hidden; --scale-factor: 1;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Page Management Modal -->
+<div id="page-modal" class="modal hidden" style="position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 1050; display: flex; align-items: center; justify-content: center;">
+    <div class="modal-content" style="background: white; border-radius: var(--radius-lg); width: 90%; max-width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header p-4 border-bottom d-flex justify-content-between align-items-center" style="border-bottom: 1px solid var(--border);">
+            <h3 class="m-0">Organize Pages</h3>
+            <button id="close-modal-btn" class="btn-icon"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body p-4 overflow-auto" style="flex: 1; min-height: 300px;">
+            <div class="mb-3 d-flex gap-2">
+                <button id="add-blank-btn" class="btn btn-secondary small-btn"><i class="fa-solid fa-file-circle-plus"></i> Add Blank Page</button>
+                <div class="text-muted small align-self-center ml-auto">Drag to reorder. Click trash to delete.</div>
+            </div>
+            <div id="modal-page-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1rem;">
+                <!-- Modals pages injected here -->
+            </div>
+        </div>
+        <div class="modal-footer p-4 border-top text-end" style="border-top: 1px solid var(--border);">
+            <button id="apply-pages-btn" class="btn btn-primary">
+                <span class="btn-text">Apply Changes</span>
+                <svg class="spinner hidden" viewBox="0 0 50 50"><circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke="#fff"></circle></svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Utilities for edit.html specifically */
+#text-layer span {
+    color: transparent; /* Makes original PDF text transparent, so we only see it when editable */
+    position: absolute;
+    white-space: pre;
+    cursor: text;
+    transform-origin: 0% 0%;
+}
+#text-layer span::selection {
+    background: rgba(0,0,255,0.2);
+}
+.thumb-wrapper {
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    position: relative;
+}
+.thumb-wrapper:hover {
+    border-color: var(--primary-hover);
+}
+.thumb-wrapper.active {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+{% endblock %}

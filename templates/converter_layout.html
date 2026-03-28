@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} - My PDF{% endblock %}
+
+{% block content %}
+<div class="text-center mb-4">
+    <h1 class="text-gradient">{{ title }}</h1>
+    <p class="text-muted">{{ subtitle }}</p>
+</div>
+
+<div class="upload-container">
+    <div id="conv-upload-zone" class="upload-zone">
+        <div style="font-size: 3rem; color: var(--primary); margin-bottom: 1rem;">
+            {{ icon|safe }}
+        </div>
+        <h3>Choose files</h3>
+        <p class="text-muted">or drop files here</p>
+        <input type="file" id="conv-file-input" accept="{{ accept }}" multiple class="hidden">
+    </div>
+
+    <form id="conv-form" action="{{ action }}" method="POST" enctype="multipart/form-data" class="hidden mt-4">
+        <input type="file" id="conv-form-file" name="files" multiple class="hidden">
+
+        <div id="conv-file-list" class="file-list mb-4">
+            <!-- File names injected here -->
+        </div>
+
+        <div class="text-center mb-4">
+            <button type="button" id="add-more-files-btn" class="btn btn-secondary small-btn">
+                <i class="fa-solid fa-plus"></i> Add more files
+            </button>
+        </div>
+
+        <div class="text-center">
+            <button type="submit" id="conv-submit-btn" class="btn btn-primary" style="padding: 1rem 3rem; font-size: 1.25rem;">
+                <span class="btn-text">Convert to {{ target_ext }}</span>
+                <svg class="spinner hidden" viewBox="0 0 50 50" style="width: 20px; height: 20px;">
+                    <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke="#fff"></circle>
+                </svg>
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/converter.js') }}"></script>
+{% endblock %}

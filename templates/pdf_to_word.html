@@ -1,0 +1,7 @@
+{% set title = "PDF to Word" %}
+{% set subtitle = "Convert your PDF to an editable Word Document." %}
+{% set icon = "<i class=\"fa-solid fa-file-word icon-word\"></i>" %}
+{% set accept = ".pdf,application/pdf" %}
+{% set action = "/api/convert/pdf-to-word" %}
+{% set target_ext = "Word" %}
+{% include 'converter_layout.html' %}

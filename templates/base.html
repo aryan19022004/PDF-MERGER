@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}My PDF - All-in-One PDF Toolkit{% endblock %}</title>
+    
+    <!-- Modern Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Global CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gradient-light">
+
+    <!-- Sticky Navbar -->
+    <nav class="navbar sticky-nav">
+        <div class="nav-container">
+            <a href="/" class="nav-brand">
+                <i class="fa-solid fa-file-pdf text-gradient"></i> My PDF
+            </a>
+            
+            <ul class="nav-menu">
+                <li><a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">Home</a></li>
+                <li><a href="/merge" class="nav-link {% if request.path == '/merge' %}active{% endif %}">Merge PDF</a></li>
+                <li><a href="/split" class="nav-link {% if request.path == '/split' %}active{% endif %}">Split PDF</a></li>
+                
+                <li class="dropdown">
+                    <a href="#" class="nav-link dropdown-toggle {% if 'to' in request.path %}active{% endif %}">
+                        Convert <i class="fa-solid fa-chevron-down"></i>
+                    </a>
+                    <div class="dropdown-menu shadow-card-xl">
+                        <div class="dropdown-grid">
+                            <a href="/pdf-to-excel" class="dropdown-item"><i class="fa-solid fa-file-excel icon-excel"></i> PDF to Excel</a>
+                            <a href="/excel-to-pdf" class="dropdown-item"><i class="fa-solid fa-file-pdf icon-pdf"></i> Excel to PDF</a>
+                            <a href="/pdf-to-word" class="dropdown-item"><i class="fa-solid fa-file-word icon-word"></i> PDF to Word</a>
+                            <a href="/word-to-pdf" class="dropdown-item"><i class="fa-solid fa-file-pdf icon-pdf"></i> Word to PDF</a>
+                            <a href="/pdf-to-ppt" class="dropdown-item"><i class="fa-solid fa-file-powerpoint icon-ppt"></i> PDF to PPT</a>
+                            <a href="/ppt-to-pdf" class="dropdown-item"><i class="fa-solid fa-file-pdf icon-pdf"></i> PPT to PDF</a>
+                            <a href="/jpg-to-pdf" class="dropdown-item"><i class="fa-solid fa-file-image icon-img"></i> JPG to PDF</a>
+                            <a href="/pdf-to-jpg" class="dropdown-item"><i class="fa-solid fa-file-image icon-img"></i> PDF to JPG</a>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <p>&copy; 2026 My PDF Toolkit. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Global Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+    
+    <!-- Global JS -->
+    <script src="{{ url_for('static', filename='js/global.js') }}"></script>
+    
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

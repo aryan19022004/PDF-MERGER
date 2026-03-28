@@ -1,195 +1,80 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends 'base.html' %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Merge PDF - Beautifully Simple</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <meta name="description" content="Merge your PDF files quickly and easily with custom page ranges.">
-</head>
-
-<body>
-    <div class="blob blob-1"></div>
-    <div class="blob blob-2"></div>
-
-    <div class="container container-large">
-        <header>
-            <h1>PDF Tools</h1>
-            <p>Combine your PDFs with precision or edit text directly on the page.</p>
-        </header>
-
-        <!-- Tabs Navigation -->
-        <div class="tabs">
-            <button class="tab-btn active" data-target="merge-view">Merge PDFs</button>
-            <button class="tab-btn" data-target="edit-view">Edit PDF</button>
-        </div>
-
-        <!-- MERGE VIEW -->
-        <div id="merge-view" class="view-section active">
-            <!-- Using a regular form structure but handling submission with JS -->
-            <form id="merge-form" class="merge-form">
-
-                <div class="pdf-inputs-wrapper">
-
-                    <!-- PDF 1 Setup -->
-                    <div class="card pdf-card">
-                        <div class="card-header">
-                            <span class="step-num">1</span>
-                            <h2>First Document</h2>
-                        </div>
-
-                        <div class="form-group document-upload">
-                            <label for="pdf1" class="upload-label" id="label-pdf1">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
-                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                    <polyline points="14 2 14 8 20 8"></polyline>
-                                    <line x1="12" y1="18" x2="12" y2="12"></line>
-                                    <line x1="9" y1="15" x2="15" y2="15"></line>
-                                </svg>
-                                <span class="upload-text">Choose PDF File</span>
-                                <span class="file-name"></span>
-                            </label>
-                            <input type="file" id="pdf1" name="pdf1" accept=".pdf" required class="hidden-input">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="range1" class="text-label">Pages to extract (Optional)</label>
-                            <input type="text" id="range1" name="range1" placeholder="e.g. 1-4, 8, 11-13">
-                            <span class="hint">Leave empty to include all pages</span>
-                        </div>
-                    </div>
-
-                    <!-- Separation Icon -->
-                    <div class="merge-icon-vertical">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <polyline points="19 12 12 19 5 12"></polyline>
-                        </svg>
-                    </div>
-
-                    <!-- PDF 2 Setup -->
-                    <div class="card pdf-card">
-                        <div class="card-header">
-                            <span class="step-num">2</span>
-                            <h2>Second Document</h2>
-                        </div>
-
-                        <div class="form-group document-upload">
-                            <label for="pdf2" class="upload-label" id="label-pdf2">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
-                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                    <polyline points="14 2 14 8 20 8"></polyline>
-                                    <line x1="12" y1="18" x2="12" y2="12"></line>
-                                    <line x1="9" y1="15" x2="15" y2="15"></line>
-                                </svg>
-                                <span class="upload-text">Choose PDF File</span>
-                                <span class="file-name"></span>
-                            </label>
-                            <input type="file" id="pdf2" name="pdf2" accept=".pdf" required class="hidden-input">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="range2" class="text-label">Pages to extract (Optional)</label>
-                            <input type="text" id="range2" name="range2" placeholder="e.g. 1-4, 8, 11-13">
-                            <span class="hint">Leave empty to include all pages</span>
-                        </div>
-                    </div>
-
-                </div>
-
-                <div class="actions">
-                    <button type="submit" id="submit-btn" class="primary-btn">
-                        <span class="btn-text">Merge PDFs</span>
-                        <svg class="spinner hidden" viewBox="0 0 50 50">
-                            <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
-                        </svg>
-                    </button>
-                    <div id="error-message" class="error-msg hidden"></div>
-                </div>
-            </form>
-        </div>
-
-        <!-- EDIT VIEW -->
-        <div id="edit-view" class="view-section hidden">
-            <!-- Step 1: Upload -->
-            <div id="edit-upload-section">
-                <div class="card pdf-card center-upload">
-                    <div class="card-header justify-center">
-                        <span class="step-num">1</span>
-                        <h2>Upload Document to Edit</h2>
-                    </div>
-
-                    <div class="form-group document-upload max-w-sm mx-auto">
-                        <label for="edit_pdf" class="upload-label" id="label-edit-pdf">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                                <line x1="12" y1="18" x2="12" y2="12"></line>
-                                <line x1="9" y1="15" x2="15" y2="15"></line>
-                            </svg>
-                            <span class="upload-text">Choose PDF File</span>
-                            <span class="file-name"></span>
-                        </label>
-                        <input type="file" id="edit_pdf" accept=".pdf" class="hidden-input">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Step 2: Editor Canvas -->
-            <div id="editor-workspace" class="hidden">
-                <div class="editor-toolbar">
-                    <div class="toolbar-group">
-                        <button id="prev-page-btn" class="icon-btn" title="Previous Page">&larr;</button>
-                        <span id="page-indicator">Page 1 / 1</span>
-                        <button id="next-page-btn" class="icon-btn" title="Next Page">&rarr;</button>
-                    </div>
-
-                    <div class="toolbar-group editing-tools opacity-50 pe-none" id="text-tools">
-                        <select id="font-family-select" class="toolbar-select">
-                            <option value="helvetica">Helvetica</option>
-                            <option value="times">Times</option>
-                            <option value="courier">Courier</option>
-                        </select>
-                        <input type="number" id="font-size-input" class="toolbar-input" min="8" max="72" value="12">
-                        <input type="color" id="text-color-input" class="toolbar-color" value="#000000">
-                    </div>
-
-                    <div class="toolbar-group ml-auto">
-                        <button id="save-edit-btn" class="primary-btn small-btn">
-                            <span class="btn-text">Save Changes</span>
-                            <svg class="spinner hidden" viewBox="0 0 50 50">
-                                <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="canvas-container-wrapper">
-                    <div id="pdf-canvas-container" class="pdf-canvas-container">
-                        <!-- Background image will be set here -->
-                        <img id="pdf-bg-layer" src="" alt="PDF Background">
-
-                        <!-- Text blocks will be injected here via JS -->
-                        <div id="text-overlay-layer"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="edit-error-message" class="error-msg hidden mx-auto mt-4"></div>
-        </div>
+{% block content %}
+<section class="hero">
+    <h1 class="text-gradient">Every tool you need to work with PDFs</h1>
+    <p>Merge, Split, Convert and Edit PDFs securely and in an instant with our fast and completely free modern online toolkit.</p>
+    
+    <div class="hero-ctas">
+        <a href="/merge" class="btn btn-primary"><i class="fa-solid fa-code-merge"></i> Merge PDF</a>
+        <a href="/split" class="btn btn-secondary"><i class="fa-solid fa-scissors"></i> Split PDF</a>
+        <a href="/pdf-to-word" class="btn btn-secondary"><i class="fa-solid fa-file-word"></i> PDF to Word</a>
     </div>
+</section>
 
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/editor.js') }}"></script>
-</body>
+<section class="tools-grid">
+    <!-- Existing Core Tools -->
+    <a href="/merge" class="tool-card">
+        <div class="tool-icon" style="color: var(--primary);"><i class="fa-solid fa-code-merge"></i></div>
+        <h3>Merge PDF</h3>
+        <p>Combine multiple PDFs into one unified document.</p>
+    </a>
+    <a href="/split" class="tool-card">
+        <div class="tool-icon" style="color: var(--secondary);"><i class="fa-solid fa-scissors"></i></div>
+        <h3>Split PDF</h3>
+        <p>Extract pages or separate one PDF into multiple files.</p>
+    </a>
+    
+    <!-- Editing -->
+    <a href="/edit" class="tool-card">
+        <div class="tool-icon" style="color: #14b8a6;"><i class="fa-solid fa-pen-to-square"></i></div>
+        <h3>Edit PDF</h3>
+        <p>Add text, edit existing words, and change formatting.</p>
+    </a>
 
-</html>
+    <!-- Converters -->
+    <a href="/pdf-to-excel" class="tool-card">
+        <div class="tool-icon icon-excel"><i class="fa-solid fa-file-excel"></i></div>
+        <h3>PDF to Excel</h3>
+        <p>Extract tables from PDFs to editable Excel sheets.</p>
+    </a>
+    <a href="/excel-to-pdf" class="tool-card">
+        <div class="tool-icon icon-pdf"><i class="fa-solid fa-file-pdf"></i></div>
+        <h3>Excel to PDF</h3>
+        <p>Convert Excel spreadsheets to PDF format.</p>
+    </a>
+    
+    <a href="/pdf-to-word" class="tool-card">
+        <div class="tool-icon icon-word"><i class="fa-solid fa-file-word"></i></div>
+        <h3>PDF to Word</h3>
+        <p>Convert PDFs to editable Word documents (.docx).</p>
+    </a>
+    <a href="/word-to-pdf" class="tool-card">
+        <div class="tool-icon icon-pdf"><i class="fa-solid fa-file-pdf"></i></div>
+        <h3>Word to PDF</h3>
+        <p>Make DOC and DOCX files easy to read by converting them to PDF.</p>
+    </a>
+    
+    <a href="/pdf-to-ppt" class="tool-card">
+        <div class="tool-icon icon-ppt"><i class="fa-solid fa-file-powerpoint"></i></div>
+        <h3>PDF to PPT</h3>
+        <p>Turn your PDF into an easy-to-edit PowerPoint presentation.</p>
+    </a>
+    <a href="/ppt-to-pdf" class="tool-card">
+        <div class="tool-icon icon-pdf"><i class="fa-solid fa-file-pdf"></i></div>
+        <h3>PPT to PDF</h3>
+        <p>Make your PowerPoint presentation easy to view as a PDF.</p>
+    </a>
+    
+    <a href="/pdf-to-jpg" class="tool-card">
+        <div class="tool-icon icon-img"><i class="fa-solid fa-file-image"></i></div>
+        <h3>PDF to JPG</h3>
+        <p>Extract images or save every page as a JPG.</p>
+    </a>
+    <a href="/jpg-to-pdf" class="tool-card">
+        <div class="tool-icon icon-pdf"><i class="fa-solid fa-file-pdf"></i></div>
+        <h3>JPG to PDF</h3>
+        <p>Convert JPG, PNG, or TIFF image files to a single PDF.</p>
+    </a>
+</section>
+{% endblock %}

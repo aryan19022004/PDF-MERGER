@@ -1,0 +1,7 @@
+{% set title = "PDF to JPG" %}
+{% set subtitle = "Extract images or convert every page out of a PDF to JPG." %}
+{% set icon = "<i class=\"fa-solid fa-file-image icon-img\"></i>" %}
+{% set accept = ".pdf,application/pdf" %}
+{% set action = "/api/convert/pdf-to-jpg" %}
+{% set target_ext = "JPG" %}
+{% include 'converter_layout.html' %}

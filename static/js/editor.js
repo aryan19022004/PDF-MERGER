@@ -5,14 +5,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabs = document.querySelectorAll('.tab-btn');
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            // Remove active from all tabs
             tabs.forEach(t => t.classList.remove('active'));
-            // Hide all views
             document.querySelectorAll('.view-section').forEach(v => v.classList.add('hidden'));
 
-            // Activate clicked tab
             tab.classList.add('active');
-            // Show target view
             const targetId = tab.getAttribute('data-target');
             document.getElementById(targetId).classList.remove('hidden');
         });
@@ -22,13 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. EDITOR STATE & DOM ELEMENTS
     // -------------------------------------------------------------------------
     let currentSessionId = null;
-    let currentPage = 0;
+    let pdfDoc = null;
+    let currentPageNum = 1;
     let totalPages = 0;
-    let textBlocks = []; // Data from backend
+    
     let editedBlocksMap = new Map(); // Keep track of blocks we changed
     let deletedBlockBboxList = []; // Original BBoxes of changed elements to erase
-
-    let activeBlockId = null; // Currently clicked block
 
     // Upload Elements
     const editFileInput = document.getElementById('edit_pdf');
@@ -38,8 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Workspace Elements
     const workspace = document.getElementById('editor-workspace');
-    const bgImage = document.getElementById('pdf-bg-layer');
-    const overlayLayer = document.getElementById('text-overlay-layer');
+    const canvas = document.getElementById('pdf-canvas');
+    const ctx = canvas.getContext('2d');
+    const textLayerDiv = document.getElementById('text-overlay-layer');
     const canvasContainer = document.getElementById('pdf-canvas-container');
 
     // Toolbar
@@ -48,17 +44,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextBtn = document.getElementById('next-page-btn');
     const saveBtn = document.getElementById('save-edit-btn');
     const textTools = document.getElementById('text-tools');
+    const managePagesBtn = document.getElementById('manage-pages-btn');
     const fontSelect = document.getElementById('font-family-select');
     const sizeInput = document.getElementById('font-size-input');
     const colorInput = document.getElementById('text-color-input');
+    const deleteBtn = document.getElementById('delete-text-btn');
+    const btnBold = document.getElementById('btn-bold');
+    const btnItalic = document.getElementById('btn-italic');
+    const btnUnderline = document.getElementById('btn-underline');
 
-    // Drag State
-    let isDragging = false;
-    let dragTarget = null;
-    let startX = 0;
-    let startY = 0;
-    let initialLeft = 0;
-    let initialTop = 0;
+    // Page Management Modal Elements
+    const pagesModal = document.getElementById('pages-modal');
+    const closePagesModalBtn = document.getElementById('close-pages-modal');
+    const pagesList = document.getElementById('pages-list');
+    const addBlankModalBtn = document.getElementById('add-blank-modal-btn');
+    const applyPagesBtn = document.getElementById('apply-pages-btn');
+    let pagesSortable = null;
+    let pageOrder = [];
+
+    let currentViewport = null;
+    let activeSpan = null;
 
     // -------------------------------------------------------------------------
     // 3. FILE UPLOAD & INIT
@@ -66,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     editFileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file || file.type !== 'application/pdf') {
-            showError("Please select a valid PDF.");
+            if (window.showToast) window.showToast("Please select a valid PDF.", "error");
             return;
         }
 
@@ -86,259 +91,256 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.error) throw new Error(data.error);
 
             currentSessionId = data.session_id;
-            totalPages = data.total_pages;
-            currentPage = 0;
-
+            
             // Switch UI
             uploadSection.classList.add('hidden');
             workspace.classList.remove('hidden');
+            managePagesBtn.classList.remove('opacity-50', 'pe-none');
 
-            // Load first page
-            await loadPageData();
+            // Load PDF via PDF.js
+            const url = `/api/get_pdf/${currentSessionId}`;
+            pdfDoc = await pdfjsLib.getDocument(url).promise;
+            totalPages = pdfDoc.numPages;
+            currentPageNum = 1;
+            
+            await renderPage(currentPageNum);
 
         } catch (err) {
             console.error(err);
-            showError(err.message);
+            if (window.showToast) window.showToast(err.message || 'Upload failed.', "error");
             labelEditPdf.classList.remove('has-file');
             labelEditPdf.querySelector('.file-name').textContent = '';
         }
     });
 
-    async function loadPageData() {
-        if (!currentSessionId) return;
-
+    async function renderPage(num) {
+        if (!pdfDoc) return;
+        
         // Reset states for new page
-        overlayLayer.innerHTML = '';
-        activeBlockId = null;
+        textLayerDiv.innerHTML = '';
+        activeSpan = null;
         textTools.classList.add('opacity-50', 'pe-none');
         updatePaginationUI();
 
         try {
-            const res = await fetch(`/api/page_data/${currentSessionId}/${currentPage}`);
-            const data = await res.json();
+            const page = await pdfDoc.getPage(num);
+            
+            // Adjust scale based on screen width/desired size, let's just use 1.5 
+            const viewport = page.getViewport({ scale: 1.5 });
+            currentViewport = viewport;
 
-            if (data.error) throw new Error(data.error);
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            canvasContainer.style.width = `${viewport.width}px`;
+            canvasContainer.style.height = `${viewport.height}px`;
+            textLayerDiv.style.width = `${viewport.width}px`;
+            textLayerDiv.style.height = `${viewport.height}px`;
 
-            // Set image
-            bgImage.src = data.image;
-            bgImage.onload = () => {
-                // Resize container to match natural image size 
-                // Wait for CSS to lay it out, but usually width: 100% works cleanly
-                const scaleX = bgImage.clientWidth / data.width;
-                const scaleY = bgImage.clientHeight / data.height;
-
-                textBlocks = data.blocks;
-                renderTextBlocks(scaleX, scaleY);
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
             };
+
+            await page.render(renderContext).promise;
+
+            // Render TextLayer for true WYSIWYG
+            const textContent = await page.getTextContent();
+            
+            pdfjsLib.renderTextLayer({
+                textContent: textContent,
+                container: textLayerDiv,
+                viewport: viewport,
+                textDivs: []
+            }).promise.then(() => {
+                // Once text layer is rendered, attach editing events
+                setupEditingEnvironment();
+            });
 
         } catch (err) {
             console.error(err);
-            showError("Failed to load page.");
+            if (window.showToast) window.showToast("Failed to render page.", "error");
         }
     }
 
-    function renderTextBlocks(scaleX, scaleY) {
-        textBlocks.forEach(block => {
-            const div = document.createElement('div');
-            div.className = 'pdf-text-block';
-            div.id = `block-${block.id}`;
-            div.textContent = block.text;
-
-            // Map BBox from PDF (points) to HTML (px relative to scaled image)
-            const [x0, y0, x1, y1] = block.bbox;
-            const width = (x1 - x0) * scaleX;
-            const height = (y1 - y0) * scaleY;
-
-            div.style.left = `${x0 * scaleX}px`;
-            div.style.top = `${y0 * scaleY}px`;
-            // div.style.width = `${width}px`;  // Letting it size to content prevents wrap bugs
-            div.style.fontSize = `${block.size * scaleX * 1.3}px`; // 1.3 approximate conversion
-
-            // Convert PyMuPDF int color to hex
-            let hexColorStr = "#000000";
-            if (typeof block.color === 'number') {
-                hexColorStr = '#' + ('000000' + block.color.toString(16)).slice(-6);
+    function setupEditingEnvironment() {
+        const spans = textLayerDiv.querySelectorAll('span');
+        spans.forEach((span, index) => {
+            span.dataset.id = `span-${index}`;
+            // Provide visual feedback for editable text
+            span.style.cursor = 'text';
+            span.style.transition = 'background 0.1s, outline 0.1s';
+            span.classList.add('editable-span');
+            
+            span.addEventListener('mouseover', () => {
+                if (span !== activeSpan) {
+                    span.style.outline = '1px dashed rgba(79, 70, 229, 0.4)';
+                }
+            });
+            
+            span.addEventListener('mouseout', () => {
+                if (span !== activeSpan) {
+                    span.style.outline = 'none';
+                }
+            });
+            
+            span.addEventListener('click', (e) => {
+                e.stopPropagation();
+                activateSpanForEditing(span);
+            });
+        });
+        
+        // Click outside to deactivate
+        document.addEventListener('click', (e) => {
+            if (activeSpan && e.target !== activeSpan && !textTools.contains(e.target)) {
+                deactivateSpan();
             }
-            div.style.color = hexColorStr;
-            div.dataset.originalColor = hexColorStr;
-            div.dataset.font = block.font;
-            div.dataset.scaleX = scaleX;
-            div.dataset.scaleY = scaleY;
-            div.dataset.originalBbox = JSON.stringify(block.bbox); // Keep the exact original
-
-            // Interactions
-            div.addEventListener('mousedown', onBlockMouseDown);
-            div.addEventListener('click', (e) => onBlockClick(e, div));
-            div.addEventListener('input', () => onBlockEdit(div)); // when contenteditable changes
-
-            overlayLayer.appendChild(div);
         });
     }
 
-    // -------------------------------------------------------------------------
-    // 4. INTERACTION: CLICK, SELECT, TOOLBAR
-    // -------------------------------------------------------------------------
-
-    // Deselect clicking outside
-    canvasContainer.addEventListener('mousedown', (e) => {
-        if (e.target.id === 'text-overlay-layer' || e.target.id === 'pdf-bg-layer') {
-            deactivateAllBlocks();
+    function activateSpanForEditing(span) {
+        if (activeSpan) {
+            deactivateSpan();
         }
-    });
-
-    function deactivateAllBlocks() {
-        document.querySelectorAll('.pdf-text-block').forEach(b => {
-            b.classList.remove('active');
-            b.removeAttribute('contenteditable');
-        });
-        activeBlockId = null;
-        textTools.classList.add('opacity-50', 'pe-none');
-    }
-
-    function onBlockClick(e, div) {
-        e.stopPropagation();
-
-        // If it's already active, make it editable
-        if (div.classList.contains('active')) {
-            div.setAttribute('contenteditable', 'true');
-            div.focus();
-            return;
+        activeSpan = span;
+        
+        // Save original bounding box if not already saved!
+        if (!editedBlocksMap.has(span.dataset.id)) {
+            // Calculate PyMuPDF original bounding box
+            const rect = span.getBoundingClientRect();
+            const containerRect = canvasContainer.getBoundingClientRect();
+            // Coordinates relative to canvas (which uses css pixels)
+            const leftPx = rect.left - containerRect.left;
+            const topPx = rect.top - containerRect.top;
+            
+            // map viewport coords to pdf points
+            const pt1 = currentViewport.convertToPdfPoint(leftPx, topPx);
+            const pt2 = currentViewport.convertToPdfPoint(leftPx + rect.width, topPx + rect.height);
+            // In PDF coords, y goes up from bottom, but PyMuPDF rects are x0,y0,x1,y1 strictly ordered:
+            const x0 = Math.min(pt1[0], pt2[0]);
+            const x1 = Math.max(pt1[0], pt2[0]);
+            const y0 = Math.min(pt1[1], pt2[1]);
+            const y1 = Math.max(pt1[1], pt2[1]);
+            
+            // Pad slightly for better erasure
+            deletedBlockBboxList.push([x0-1, y0-2, x1+1, y1+2]);
         }
-
-        // Otherwise, make it active
-        deactivateAllBlocks();
-        div.classList.add('active');
-        activeBlockId = div.id;
-
-        // Populate toolbar
+        
+        span.contentEditable = "true";
+        span.style.outline = '2px solid var(--primary)';
+        span.style.background = 'white';
+        span.style.color = span.style.color || window.getComputedStyle(span).color;
+        span.style.whiteSpace = 'pre-wrap'; // Fixes the space typing bug
+        span.style.minWidth = '20px'; // Ensure it doesn't collapse
+        span.focus();
+        
         textTools.classList.remove('opacity-50', 'pe-none');
+        
+        // Update toolbar
+        const currentSizePx = parseFloat(window.getComputedStyle(span).fontSize); // px
+        // convert px back to pt approx for backend (pt = px * 0.75 / scale) roughly
+        sizeInput.value = Math.round(currentSizePx / currentViewport.scale) || 12;
+        
+        const rgbColor = window.getComputedStyle(span).color;
+        colorInput.value = rgbToHex(rgbColor) || "#000000";
+        
+        const currentFont = window.getComputedStyle(span).fontFamily.toLowerCase();
+        if (currentFont.includes('time') || currentFont.includes('serif')) fontSelect.value = 'times';
+        else if (currentFont.includes('cour') || currentFont.includes('mono')) fontSelect.value = 'courier';
+        else fontSelect.value = 'helvetica';
+        
+        span.addEventListener('input', trackChanges);
+    }
+    
+    function trackChanges() {
+        if (!activeSpan) return;
+        
+        const rect = activeSpan.getBoundingClientRect();
+        const containerRect = canvasContainer.getBoundingClientRect();
+        const leftPx = rect.left - containerRect.left;
+        const topPx = rect.top - containerRect.top;
+        
+        const pt1 = currentViewport.convertToPdfPoint(leftPx, topPx);
+        const pt2 = currentViewport.convertToPdfPoint(leftPx + rect.width, topPx + rect.height);
+        
+        const x0 = Math.min(pt1[0], pt2[0]);
+        const x1 = Math.max(pt1[0], pt2[0]);
+        const y0 = Math.min(pt1[1], pt2[1]);
+        const y1 = Math.max(pt1[1], pt2[1]);
+        
+        // Clean text nodes from contenteditable artifacts
+        let rawText = activeSpan.textContent || activeSpan.innerText;
+        rawText = rawText.replace(/\u00A0/g, " ");
 
-        const currentFontSize = parseInt(window.getComputedStyle(div).fontSize);
-        const currentScaleX = parseFloat(div.dataset.scaleX);
-        sizeInput.value = Math.round(currentFontSize / (currentScaleX * 1.3)); // Back to approx pt size
+        editedBlocksMap.set(activeSpan.dataset.id, {
+            text: rawText,
+            html: activeSpan.innerHTML, // NEW: Capture the formatted HTML
+            new_bbox: [x0, y0, x1, y1],
+            fontFamilly: fontSelect.value,
+            fontSize: parseInt(sizeInput.value),
+            color: colorInput.value
+        });
+    }
 
-        // Try getting hex from rgb
-        const rgbColor = window.getComputedStyle(div).color;
-        colorInput.value = rgbToHex(rgbColor) || div.dataset.originalColor;
-
-        // Note: PyMuPDF font names are messy (e.g. "Times-Roman", "Helvetica-Bold").
-        // We do a rough match for the dropdown.
-        const fontLower = (div.dataset.font || '').toLowerCase();
-        if (fontLower.includes('time') || fontLower.includes('serif')) {
-            fontSelect.value = 'times';
-        } else if (fontLower.includes('cour') || fontLower.includes('mono')) {
-            fontSelect.value = 'courier';
-        } else {
-            fontSelect.value = 'helvetica';
+    function deactivateSpan() {
+        if (activeSpan) {
+            activeSpan.contentEditable = "false";
+            activeSpan.style.outline = 'none';
+            activeSpan.style.background = 'transparent';
+            activeSpan.removeEventListener('input', trackChanges);
+            // ensure it tracks on blur
+            trackChanges();
+            activeSpan = null;
+            textTools.classList.add('opacity-50', 'pe-none');
         }
     }
 
     // Toolbar Listeners
-    fontSelect.addEventListener('change', () => applyStyleToActive('fontFamily', fontSelect.value));
-    sizeInput.addEventListener('change', () => {
-        if (!activeBlockId) return;
-        const div = document.getElementById(activeBlockId);
-        const scaleX = parseFloat(div.dataset.scaleX);
-        const rawSize = parseInt(sizeInput.value);
-        div.style.fontSize = `${rawSize * scaleX * 1.3}px`;
-        onBlockEdit(div); // mark as dirty
+    fontSelect.addEventListener('change', () => {
+        if (activeSpan) {
+            let cssFont = 'sans-serif';
+            if(fontSelect.value === 'times') cssFont = 'serif';
+            if(fontSelect.value === 'courier') cssFont = 'monospace';
+            activeSpan.style.fontFamily = cssFont;
+            trackChanges();
+        }
     });
-    colorInput.addEventListener('input', () => applyStyleToActive('color', colorInput.value));
 
-    function applyStyleToActive(prop, value) {
-        if (!activeBlockId) return;
-        const div = document.getElementById(activeBlockId);
-        div.style[prop] = value;
-        onBlockEdit(div); // mark dirty
-    }
-
-    // -------------------------------------------------------------------------
-    // 5. INTERACTION: DRAG & DROP
-    // -------------------------------------------------------------------------
-    function onBlockMouseDown(e) {
-        // Don't start drag if we are actively typing text inside
-        if (e.target.getAttribute('contenteditable') === 'true') {
-            return;
+    sizeInput.addEventListener('change', () => {
+        if (activeSpan) {
+            const rawSize = parseInt(sizeInput.value);
+            // approximate display size
+            activeSpan.style.fontSize = `${rawSize * currentViewport.scale}px`;
+            trackChanges();
         }
+    });
 
-        isDragging = true;
-        dragTarget = e.target;
-
-        const rect = dragTarget.getBoundingClientRect();
-        const containerRect = canvasContainer.getBoundingClientRect();
-
-        // Store mouse offset relative to the block's top-left
-        startX = e.clientX - rect.left;
-        startY = e.clientY - rect.top;
-
-        document.addEventListener('mousemove', onDocumentMouseMove);
-        document.addEventListener('mouseup', onDocumentMouseUp);
-        e.preventDefault(); // Prevent text selection highlight while dragging
-    }
-
-    function onDocumentMouseMove(e) {
-        if (!isDragging || !dragTarget) return;
-
-        const containerRect = canvasContainer.getBoundingClientRect();
-
-        // Calculate new top/left relative to the container
-        let newLeft = Math.round(e.clientX - containerRect.left - startX);
-        let newTop = Math.round(e.clientY - containerRect.top - startY);
-
-        // Optional bounding box constraint so it doesn't leave canvas
-        newLeft = Math.max(0, Math.min(newLeft, containerRect.width - dragTarget.offsetWidth));
-        newTop = Math.max(0, Math.min(newTop, containerRect.height - dragTarget.offsetHeight));
-
-        dragTarget.style.left = `${newLeft}px`;
-        dragTarget.style.top = `${newTop}px`;
-    }
-
-    function onDocumentMouseUp(e) {
-        if (isDragging && dragTarget) {
-            onBlockEdit(dragTarget); // Register position change
+    colorInput.addEventListener('input', () => {
+        if (activeSpan) {
+            activeSpan.style.color = colorInput.value;
+            trackChanges();
         }
-        isDragging = false;
-        dragTarget = null;
-        document.removeEventListener('mousemove', onDocumentMouseMove);
-        document.removeEventListener('mouseup', onDocumentMouseUp);
+    });
+
+    if(btnBold) {
+        btnBold.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // prevent losing focus
+            document.execCommand('bold', false, null);
+            trackChanges();
+        });
     }
-
-    // -------------------------------------------------------------------------
-    // 6. RECORDING CHANGES
-    // -------------------------------------------------------------------------
-    function onBlockEdit(div) {
-        // If this is the first time we edit this block, save its original bounding box
-        // so the backend knows to erase the *original* text under it.
-        if (!editedBlocksMap.has(div.id)) {
-            const origBbox = JSON.parse(div.dataset.originalBbox);
-            deletedBlockBboxList.push(origBbox);
-        }
-
-        // Calculate new BBox for PyMuPDF based on new HTML position
-        // Backwards calculation: divide px by scale factor
-        const scaleX = parseFloat(div.dataset.scaleX);
-        const scaleY = parseFloat(div.dataset.scaleY);
-
-        const pxLeft = parseFloat(div.style.left);
-        const pxTop = parseFloat(div.style.top);
-
-        const newX0 = pxLeft / scaleX;
-        const newY0 = pxTop / scaleY;
-        // width/height approximation
-        const newX1 = newX0 + (div.offsetWidth / scaleX);
-        const newY1 = newY0 + (div.offsetHeight / scaleY);
-
-        const fontName = fontSelect.value || 'helv'; // fallback logic
-        const fontSizeRaw = sizeInput.value || 12;
-        const colorHex = rgbToHex(window.getComputedStyle(div).color) || '#000000';
-
-        // Save new state
-        editedBlocksMap.set(div.id, {
-            text: div.textContent || div.innerText,
-            new_bbox: [newX0, newY0, newX1, newY1],
-            fontFamilly: fontName,
-            fontSize: parseInt(fontSizeRaw),
-            color: colorHex
+    if(btnItalic) {
+        btnItalic.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            document.execCommand('italic', false, null);
+            trackChanges();
+        });
+    }
+    if(btnUnderline) {
+        btnUnderline.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            document.execCommand('underline', false, null);
+            trackChanges();
         });
     }
 
@@ -347,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------------------
     saveBtn.addEventListener('click', async () => {
         if (!currentSessionId) return;
-        if (editedBlocksMap.size === 0) {
+        if (editedBlocksMap.size === 0 && deletedBlockBboxList.length === 0) {
             alert("No changes made on this page.");
             return;
         }
@@ -359,9 +361,10 @@ document.addEventListener('DOMContentLoaded', () => {
         spinner.classList.remove('hidden');
 
         try {
+            // Note: backend expects 0-indexed page num!
             const payload = {
                 session_id: currentSessionId,
-                page_num: currentPage,
+                page_num: currentPageNum - 1, 
                 edits: Array.from(editedBlocksMap.values()),
                 deleted: deletedBlockBboxList
             };
@@ -378,14 +381,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // Successfully saved page changes. Download the whole doc.
             window.location.href = `/api/download_edit/${currentSessionId}`;
 
-            // NOTE: Usually you stay and keep editing, but per requirement we allow download
             // Clear out edits for next actions if they don't leave
             editedBlocksMap.clear();
             deletedBlockBboxList = [];
 
         } catch (err) {
             console.error(err);
-            showError("Failed to save changes: " + err.message);
+            if (window.showToast) window.showToast("Failed to save changes: " + err.message, "error");
         } finally {
             saveBtn.disabled = false;
             btnText.textContent = 'Save Changes';
@@ -397,41 +399,161 @@ document.addEventListener('DOMContentLoaded', () => {
     // 8. UTILS
     // -------------------------------------------------------------------------
     prevBtn.addEventListener('click', () => {
-        if (currentPage > 0) {
-            currentPage--;
-            loadPageData();
-        }
+        if (currentPageNum <= 1) return;
+        currentPageNum--;
+        renderPage(currentPageNum);
     });
 
     nextBtn.addEventListener('click', () => {
-        if (currentPage < totalPages - 1) {
-            currentPage++;
-            loadPageData();
-        }
+        if (currentPageNum >= totalPages) return;
+        currentPageNum++;
+        renderPage(currentPageNum);
     });
 
     function updatePaginationUI() {
         if (totalPages > 0) {
-            pageIndicator.textContent = `Page ${currentPage + 1} / ${totalPages}`;
-            prevBtn.disabled = currentPage === 0;
-            nextBtn.disabled = currentPage === totalPages - 1;
+            pageIndicator.textContent = `Page ${currentPageNum} / ${totalPages}`;
+            prevBtn.disabled = currentPageNum <= 1;
+            nextBtn.disabled = currentPageNum >= totalPages;
         }
     }
 
-    function showError(msg) {
-        errorMsg.textContent = msg;
-        errorMsg.classList.remove('hidden');
-        setTimeout(() => {
-            errorMsg.classList.add('hidden');
-        }, 5000);
-    }
-
     function rgbToHex(rgbStr) {
-        const matches = rgbStr.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
-        if (!matches) return null;
+        if (!rgbStr) return "#000000";
+        if (rgbStr.startsWith('#')) return rgbStr;
+        const matches = rgbStr.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)$/);
+        if (!matches) return "#000000";
         return "#" +
             ("0" + parseInt(matches[1]).toString(16)).slice(-2) +
             ("0" + parseInt(matches[2]).toString(16)).slice(-2) +
             ("0" + parseInt(matches[3]).toString(16)).slice(-2);
     }
+
+    // -------------------------------------------------------------------------
+    // 9. PAGE MANAGEMENT
+    // -------------------------------------------------------------------------
+    managePagesBtn.addEventListener('click', () => {
+        openPagesModal();
+    });
+
+    closePagesModalBtn.addEventListener('click', () => {
+        pagesModal.classList.add('hidden');
+    });
+
+    addBlankModalBtn.addEventListener('click', () => {
+        pageOrder.push('BLANK');
+        renderPageListRow('BLANK', 'BLANK', pageOrder.length);
+    });
+
+    function openPagesModal() {
+        pagesModal.classList.remove('hidden');
+        pagesList.innerHTML = '';
+        pageOrder = [];
+        
+        for (let i = 0; i < totalPages; i++) {
+            pageOrder.push(i);
+            renderPageListRow(`Page ${i + 1}`, i, i + 1);
+        }
+
+        if (pagesSortable) pagesSortable.destroy();
+        pagesSortable = new Sortable(pagesList, {
+            animation: 150,
+            handle: '.page-drag-handle',
+            onEnd: () => {
+                syncPageOrder();
+            }
+        });
+    }
+
+    function renderPageListRow(title, originalValue, displayIndex) {
+        const div = document.createElement('div');
+        div.className = 'page-row';
+        div.style.display = 'flex';
+        div.style.justifyContent = 'space-between';
+        div.style.alignItems = 'center';
+        div.style.padding = '0.75rem';
+        div.style.background = 'white';
+        div.style.marginBottom = '0.5rem';
+        div.style.borderRadius = 'var(--radius-sm)';
+        div.style.border = '1px solid var(--border)';
+        div.dataset.value = originalValue;
+        
+        div.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <span class="page-drag-handle" style="cursor: grab; color: var(--text-muted); font-size: 1.2rem;">&#x21c5;</span>
+                <span class="page-title-display"><strong>${displayIndex}.</strong> ${title}</span>
+            </div>
+            <button class="icon-btn text-error remove-page-btn" title="Delete Page" style="color: var(--error); border: none;">&times;</button>
+        `;
+        
+        const removeBtn = div.querySelector('.remove-page-btn');
+        removeBtn.addEventListener('click', () => {
+            div.remove();
+            syncPageOrder();
+        });
+        
+        pagesList.appendChild(div);
+    }
+
+    function syncPageOrder() {
+        const rows = pagesList.querySelectorAll('.page-row');
+        pageOrder = [];
+        rows.forEach((row, index) => {
+            pageOrder.push(row.dataset.value);
+            const titleDisplay = row.querySelector('.page-title-display');
+            let currentText = titleDisplay.textContent.split('.')[1] || ' Blank Page';
+            currentText = currentText.trim();
+            titleDisplay.innerHTML = `<strong>${index + 1}.</strong> ${currentText}`;
+        });
+    }
+
+    applyPagesBtn.addEventListener('click', async () => {
+        if (!currentSessionId) return;
+        
+        const btnText = applyPagesBtn.querySelector('.btn-text');
+        const spinner = applyPagesBtn.querySelector('.spinner');
+        applyPagesBtn.disabled = true;
+        btnText.textContent = 'Applying...';
+        spinner.classList.remove('hidden');
+
+        try {
+            const payload = {
+                session_id: currentSessionId,
+                new_order: pageOrder
+            };
+
+            const res = await fetch('/api/reorder_pages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+
+            // Re-fetch document into PDF.js
+            const url = `/api/get_pdf/${currentSessionId}?t=${Date.now()}`;
+            pdfDoc = await pdfjsLib.getDocument(url).promise;
+            totalPages = pdfDoc.numPages;
+            
+            // Go to page 1
+            currentPageNum = 1;
+            
+            // clear edits! If pages shift, their edits might mismatch.
+            editedBlocksMap.clear();
+            deletedBlockBboxList = [];
+            
+            await renderPage(currentPageNum);
+            
+            pagesModal.classList.add('hidden');
+
+        } catch (err) {
+            console.error(err);
+            if (window.showToast) window.showToast("Failed to apply page changes: " + err.message, "error");
+        } finally {
+            applyPagesBtn.disabled = false;
+            btnText.textContent = 'Apply';
+            spinner.classList.add('hidden');
+        }
+    });
 });

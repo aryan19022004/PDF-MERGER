@@ -1,0 +1,7 @@
+{% set title = "Excel to PDF" %}
+{% set subtitle = "Convert your Excel spreadsheets to PDF." %}
+{% set icon = "<i class=\"fa-solid fa-file-pdf icon-pdf\"></i>" %}
+{% set accept = ".xlsx,.xls" %}
+{% set action = "/api/convert/excel-to-pdf" %}
+{% set target_ext = "PDF" %}
+{% include 'converter_layout.html' %}

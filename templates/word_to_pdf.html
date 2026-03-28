@@ -1,0 +1,7 @@
+{% set title = "Word to PDF" %}
+{% set subtitle = "Make DOC and DOCX files easy to read by converting them to PDF." %}
+{% set icon = "<i class=\"fa-solid fa-file-pdf icon-pdf\"></i>" %}
+{% set accept = ".docx,.doc" %}
+{% set action = "/api/convert/word-to-pdf" %}
+{% set target_ext = "PDF" %}
+{% include 'converter_layout.html' %}
