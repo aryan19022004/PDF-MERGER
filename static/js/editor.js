@@ -1,83 +1,62 @@
+// editor.js - Canva-Style Interactive UI
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
 document.addEventListener('DOMContentLoaded', () => {
-    // -------------------------------------------------------------------------
-    // 1. TABS LOGIC
-    // -------------------------------------------------------------------------
-    const tabs = document.querySelectorAll('.tab-btn');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            tabs.forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.view-section').forEach(v => v.classList.add('hidden'));
-
-            tab.classList.add('active');
-            const targetId = tab.getAttribute('data-target');
-            document.getElementById(targetId).classList.remove('hidden');
-        });
-    });
-
-    // -------------------------------------------------------------------------
-    // 2. EDITOR STATE & DOM ELEMENTS
-    // -------------------------------------------------------------------------
-    let currentSessionId = null;
     let pdfDoc = null;
     let currentPageNum = 1;
-    let totalPages = 0;
-    
-    let editedBlocksMap = new Map(); // Keep track of blocks we changed
-    let deletedBlockBboxList = []; // Original BBoxes of changed elements to erase
+    let currentScale = 1.0;
+    let currentViewport = null;
+    let currentSessionId = null;
 
-    // Upload Elements
-    const editFileInput = document.getElementById('edit_pdf');
-    const labelEditPdf = document.getElementById('label-edit-pdf');
-    const uploadSection = document.getElementById('edit-upload-section');
-    const errorMsg = document.getElementById('edit-error-message');
+    let activeSpan = null;
+    let isDragging = false;
+    let dragStartX = 0, dragStartY = 0;
 
-    // Workspace Elements
-    const workspace = document.getElementById('editor-workspace');
+    // We must track ALL edits across the entire document
+    // mapped by page_num (0-indexed) => array of edit objects
+    const documentEdits = {};
+
+    // DOM Elements
+    const fileInput = document.getElementById('edit-pdf-input');
+    const filenameLabel = document.getElementById('active-filename');
+    const addTextBtn = document.getElementById('add-text-btn');
+    const savePdfBtn = document.getElementById('save-pdf-btn');
+
+    const canvasContainer = document.getElementById('canvas-container');
     const canvas = document.getElementById('pdf-canvas');
     const ctx = canvas.getContext('2d');
-    const textLayerDiv = document.getElementById('text-overlay-layer');
-    const canvasContainer = document.getElementById('pdf-canvas-container');
+    const textLayer = document.getElementById('text-layer');
+    const scrollArea = document.getElementById('canvas-scroll-area');
 
-    // Toolbar
-    const pageIndicator = document.getElementById('page-indicator');
-    const prevBtn = document.getElementById('prev-page-btn');
-    const nextBtn = document.getElementById('next-page-btn');
-    const saveBtn = document.getElementById('save-edit-btn');
-    const textTools = document.getElementById('text-tools');
-    const managePagesBtn = document.getElementById('manage-pages-btn');
-    const fontSelect = document.getElementById('font-family-select');
-    const sizeInput = document.getElementById('font-size-input');
-    const colorInput = document.getElementById('text-color-input');
-    const deleteBtn = document.getElementById('delete-text-btn');
+    const floatToolbar = document.getElementById('floating-toolbar');
+    const fontSelect = document.getElementById('font-family');
+    const sizeInput = document.getElementById('font-size');
+    const colorInput = document.getElementById('text-color');
     const btnBold = document.getElementById('btn-bold');
     const btnItalic = document.getElementById('btn-italic');
     const btnUnderline = document.getElementById('btn-underline');
+    const btnDelete = document.getElementById('delete-text-btn');
 
-    // Page Management Modal Elements
-    const pagesModal = document.getElementById('pages-modal');
-    const closePagesModalBtn = document.getElementById('close-pages-modal');
-    const pagesList = document.getElementById('pages-list');
-    const addBlankModalBtn = document.getElementById('add-blank-modal-btn');
-    const applyPagesBtn = document.getElementById('apply-pages-btn');
-    let pagesSortable = null;
-    let pageOrder = [];
-
-    let currentViewport = null;
-    let activeSpan = null;
+    const pageNav = document.getElementById('page-navigator');
+    const btnPrev = document.getElementById('prev-page-btn');
+    const btnNext = document.getElementById('next-page-btn');
+    const pageInd = document.getElementById('page-indicator');
+    const btnZoomIn = document.getElementById('zoom-in-btn');
+    const btnZoomOut = document.getElementById('zoom-out-btn');
+    const zoomLvl = document.getElementById('zoom-level');
+    const btnDeletePage = document.getElementById('delete-page-btn');
 
     // -------------------------------------------------------------------------
-    // 3. FILE UPLOAD & INIT
+    // 1. UPLOAD & INIT
     // -------------------------------------------------------------------------
-    editFileInput.addEventListener('change', async (e) => {
+    fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
-        if (!file || file.type !== 'application/pdf') {
-            if (window.showToast) window.showToast("Please select a valid PDF.", "error");
-            return;
-        }
+        if (!file) return;
 
-        labelEditPdf.classList.add('has-file');
-        labelEditPdf.querySelector('.file-name').textContent = 'Uploading...';
+        filenameLabel.textContent = file.name;
 
+        // Upload to backend immediately to get a session
         const formData = new FormData();
         formData.append('edit_pdf', file);
 
@@ -87,194 +66,317 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: formData
             });
             const data = await res.json();
-
             if (data.error) throw new Error(data.error);
 
             currentSessionId = data.session_id;
-            
-            // Switch UI
-            uploadSection.classList.add('hidden');
-            workspace.classList.remove('hidden');
-            managePagesBtn.classList.remove('opacity-50', 'pe-none');
 
-            // Load PDF via PDF.js
-            const url = `/api/get_pdf/${currentSessionId}`;
-            pdfDoc = await pdfjsLib.getDocument(url).promise;
-            totalPages = pdfDoc.numPages;
-            currentPageNum = 1;
-            
-            await renderPage(currentPageNum);
+            // Load into PDF.js
+            const fileReader = new FileReader();
+            fileReader.onload = async function () {
+                const typedarray = new Uint8Array(this.result);
+                pdfDoc = await pdfjsLib.getDocument(typedarray).promise;
+                currentPageNum = 1;
+                currentScale = 1.0;
 
+                addTextBtn.disabled = false;
+                savePdfBtn.disabled = false;
+                pageNav.style.opacity = '1';
+                pageNav.style.pointerEvents = 'auto';
+
+                renderPage(currentPageNum);
+            };
+            fileReader.readAsArrayBuffer(file);
         } catch (err) {
-            console.error(err);
-            if (window.showToast) window.showToast(err.message || 'Upload failed.', "error");
-            labelEditPdf.classList.remove('has-file');
-            labelEditPdf.querySelector('.file-name').textContent = '';
+            window.showToast?.('Upload failed: ' + err.message, 'error');
         }
     });
 
+    // -------------------------------------------------------------------------
+    // 2. RENDER PAGE
+    // -------------------------------------------------------------------------
     async function renderPage(num) {
         if (!pdfDoc) return;
-        
-        // Reset states for new page
-        textLayerDiv.innerHTML = '';
-        activeSpan = null;
-        textTools.classList.add('opacity-50', 'pe-none');
-        updatePaginationUI();
+        pageInd.textContent = `Page ${num} of ${pdfDoc.numPages}`;
+        zoomLvl.textContent = `${Math.round(currentScale * 100)}%`;
 
-        try {
-            const page = await pdfDoc.getPage(num);
-            
-            // Adjust scale based on screen width/desired size, let's just use 1.5 
-            const viewport = page.getViewport({ scale: 1.5 });
-            currentViewport = viewport;
+        btnPrev.disabled = num <= 1;
+        btnNext.disabled = num >= pdfDoc.numPages;
 
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-            
-            canvasContainer.style.width = `${viewport.width}px`;
-            canvasContainer.style.height = `${viewport.height}px`;
-            textLayerDiv.style.width = `${viewport.width}px`;
-            textLayerDiv.style.height = `${viewport.height}px`;
+        const page = await pdfDoc.getPage(num);
+        const viewport = page.getViewport({ scale: currentScale });
+        currentViewport = viewport;
 
-            const renderContext = {
-                canvasContext: ctx,
-                viewport: viewport
+        // Container sizing
+        canvasContainer.style.width = `${viewport.width}px`;
+        canvasContainer.style.height = `${viewport.height}px`;
+
+        // Canvas sizing
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+
+        // Render PDF Graphics
+        const renderContext = {
+            canvasContext: ctx,
+            viewport: viewport
+        };
+        await page.render(renderContext).promise;
+
+        // Update Text Layer
+        textLayer.style.setProperty('--scale-factor', currentScale);
+        textLayer.innerHTML = '';
+        hideToolbar();
+
+        // 1. Extract existing PDF text
+        const textContent = await page.getTextContent();
+        pdfjsLib.renderTextLayer({
+            textContentSource: textContent,
+            container: textLayer,
+            viewport: viewport,
+            textDivs: []
+        });
+
+        // 2. Setup extracted text to be editable
+        setTimeout(() => {
+            const spans = textLayer.querySelectorAll('span');
+            spans.forEach((span, index) => {
+                span.dataset.id = `orig_${index}`;
+                span.dataset.isNew = 'false';
+                span.classList.add('draggable-handle');
+
+                // Track original bounds right away
+                const rect = span.getBoundingClientRect();
+                const crect = canvasContainer.getBoundingClientRect();
+                span.dataset.origLeft = rect.left - crect.left;
+                span.dataset.origTop = rect.top - crect.top;
+
+                span.addEventListener('mousedown', handleSpanClick);
+            });
+
+            // 3. Restore any existing edits we made on this page during this session!
+            restoreEditsForPage(num - 1); // 0-indexed for backend
+        }, 100);
+    }
+
+    // -------------------------------------------------------------------------
+    // Navigation & Zoom
+    // -------------------------------------------------------------------------
+    btnPrev.addEventListener('click', () => { if (currentPageNum > 1) renderPage(--currentPageNum); });
+    btnNext.addEventListener('click', () => { if (currentPageNum < pdfDoc.numPages) renderPage(++currentPageNum); });
+
+    btnZoomIn.addEventListener('click', () => {
+        if (currentScale < 3.0) { currentScale += 0.25; renderPage(currentPageNum); }
+    });
+    btnZoomOut.addEventListener('click', () => {
+        if (currentScale > 0.5) { currentScale -= 0.25; renderPage(currentPageNum); }
+    });
+
+    // -------------------------------------------------------------------------
+    // 3. TEXT EDITING & DRAGGING
+    // -------------------------------------------------------------------------
+    function handleSpanClick(e) {
+        if (isDragging) return;
+
+        // If clicking a different span, deactivate old one
+        if (activeSpan && activeSpan !== e.currentTarget) deactivateSpan();
+
+        activeSpan = e.currentTarget;
+        activeSpan.contentEditable = "true";
+        activeSpan.style.outline = '2px dashed var(--primary)';
+        activeSpan.style.cursor = 'text';
+
+        // Keep it easily editable
+        activeSpan.style.whiteSpace = 'pre-wrap';
+        activeSpan.style.minWidth = '20px';
+        activeSpan.style.minHeight = '1em';
+
+        // Setup dragging via a pseudo handler if we click slightly outside text?
+        // Let's just allow drag on mousedown, then editable on mouseup
+        isDragging = false;
+
+        positionToolbar(activeSpan);
+        syncToolbarStyles(activeSpan);
+
+        activeSpan.addEventListener('input', trackSpanChange);
+        activeSpan.addEventListener('blur', trackSpanChange);
+    }
+
+    // Drag Logic overrides
+    textLayer.addEventListener('mousedown', (e) => {
+        if (e.target.tagName.toLowerCase() === 'span' && e.target.classList.contains('draggable-handle')) {
+            // Only drag if holding shift OR if it's the active span acting as a handle
+            // Canva usually requires clicking a border, we'll just drag if mousedown occurs and mouse moves
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+
+            const onMouseMove = (moveEvent) => {
+                isDragging = true;
+                const dx = moveEvent.clientX - dragStartX;
+                const dy = moveEvent.clientY - dragStartY;
+
+                const curLeft = parseFloat(e.target.style.left || 0);
+                const curTop = parseFloat(e.target.style.top || 0);
+
+                e.target.style.left = `${curLeft + dx}px`;
+                e.target.style.top = `${curTop + dy}px`;
+
+                dragStartX = moveEvent.clientX;
+                dragStartY = moveEvent.clientY;
+
+                if (activeSpan === e.target) positionToolbar(e.target);
             };
 
-            await page.render(renderContext).promise;
+            const onMouseUp = () => {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                if (isDragging && e.target === activeSpan) {
+                    trackSpanChange(); // Save new pos
+                }
+                setTimeout(() => isDragging = false, 50);
+            };
 
-            // Render TextLayer for true WYSIWYG
-            const textContent = await page.getTextContent();
-            
-            pdfjsLib.renderTextLayer({
-                textContent: textContent,
-                container: textLayerDiv,
-                viewport: viewport,
-                textDivs: []
-            }).promise.then(() => {
-                // Once text layer is rendered, attach editing events
-                setupEditingEnvironment();
-            });
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        } else {
+            // Click outside drops focus
+            if (!floatToolbar.contains(e.target)) deactivateSpan();
+        }
+    });
 
-        } catch (err) {
-            console.error(err);
-            if (window.showToast) window.showToast("Failed to render page.", "error");
+    // -------------------------------------------------------------------------
+    // 4. FLOATING TOOLBAR LOGIC
+    // -------------------------------------------------------------------------
+    function positionToolbar(span) {
+        const rect = span.getBoundingClientRect();
+        const scRect = scrollArea.getBoundingClientRect();
+
+        // Try top, if hits ceiling, try bottom
+        let top = (rect.top - scRect.top) - 55 + scrollArea.scrollTop;
+        if (top < scrollArea.scrollTop) top = (rect.bottom - scRect.top) + 10 + scrollArea.scrollTop;
+
+        let left = (rect.left - scRect.left) + scrollArea.scrollLeft;
+
+        floatToolbar.style.top = `${top}px`;
+        floatToolbar.style.left = `${Math.max(10, left)}px`;
+        floatToolbar.classList.add('active');
+    }
+
+    function hideToolbar() {
+        floatToolbar.classList.remove('active');
+    }
+
+    function deactivateSpan() {
+        if (activeSpan) {
+            activeSpan.contentEditable = "false";
+            activeSpan.style.outline = 'none';
+            trackSpanChange();
+            activeSpan.removeEventListener('input', trackSpanChange);
+            activeSpan.removeEventListener('blur', trackSpanChange);
+            activeSpan = null;
+            hideToolbar();
         }
     }
 
-    function setupEditingEnvironment() {
-        const spans = textLayerDiv.querySelectorAll('span');
-        spans.forEach((span, index) => {
-            span.dataset.id = `span-${index}`;
-            // Provide visual feedback for editable text
-            span.style.cursor = 'text';
-            span.style.transition = 'background 0.1s, outline 0.1s';
-            span.classList.add('editable-span');
-            
-            span.addEventListener('mouseover', () => {
-                if (span !== activeSpan) {
-                    span.style.outline = '1px dashed rgba(79, 70, 229, 0.4)';
-                }
-            });
-            
-            span.addEventListener('mouseout', () => {
-                if (span !== activeSpan) {
-                    span.style.outline = 'none';
-                }
-            });
-            
-            span.addEventListener('click', (e) => {
-                e.stopPropagation();
-                activateSpanForEditing(span);
-            });
-        });
-        
-        // Click outside to deactivate
-        document.addEventListener('click', (e) => {
-            if (activeSpan && e.target !== activeSpan && !textTools.contains(e.target)) {
-                deactivateSpan();
-            }
-        });
+    function syncToolbarStyles(span) {
+        const style = window.getComputedStyle(span);
+        const ptSize = parseFloat(style.fontSize) / currentScale;
+        sizeInput.value = Math.round(ptSize) || 12;
+
+        const rgb = style.color;
+        // simplistic rgb to hex
+        const a = rgb.split('(')[1].split(')')[0].split(',');
+        const hex = "#" + (1 << 24 | a[0] << 16 | a[1] << 8 | a[2]).toString(16).slice(1);
+        colorInput.value = hex;
+        // fontFamily parsing is messy, default to helvetica for now
     }
 
-    function activateSpanForEditing(span) {
+    // Toolbar events
+    fontSelect.addEventListener('change', () => {
+        if (activeSpan) { activeSpan.style.fontFamily = fontSelect.value; trackSpanChange(); positionToolbar(activeSpan); }
+    });
+    sizeInput.addEventListener('input', () => {
+        if (activeSpan) { activeSpan.style.fontSize = `${parseFloat(sizeInput.value) * currentScale}px`; trackSpanChange(); positionToolbar(activeSpan); }
+    });
+    colorInput.addEventListener('input', () => {
+        if (activeSpan) { activeSpan.style.color = colorInput.value; trackSpanChange(); }
+    });
+    btnBold.addEventListener('mousedown', (e) => { e.preventDefault(); document.execCommand('bold'); trackSpanChange(); });
+    btnItalic.addEventListener('mousedown', (e) => { e.preventDefault(); document.execCommand('italic'); trackSpanChange(); });
+    btnUnderline.addEventListener('mousedown', (e) => { e.preventDefault(); document.execCommand('underline'); trackSpanChange(); });
+
+    btnDelete.addEventListener('click', () => {
         if (activeSpan) {
+            // If it's original text, we must explicitly wipe it.
+            activeSpan.innerHTML = '';
+            activeSpan.textContent = '';
+            trackSpanChange();
+            activeSpan.remove();
             deactivateSpan();
         }
-        activeSpan = span;
-        
-        // Save original bounding box if not already saved!
-        if (!editedBlocksMap.has(span.dataset.id)) {
-            // Calculate PyMuPDF original bounding box
-            const rect = span.getBoundingClientRect();
-            const containerRect = canvasContainer.getBoundingClientRect();
-            // Coordinates relative to canvas (which uses css pixels)
-            const leftPx = rect.left - containerRect.left;
-            const topPx = rect.top - containerRect.top;
-            
-            // map viewport coords to pdf points
-            const pt1 = currentViewport.convertToPdfPoint(leftPx, topPx);
-            const pt2 = currentViewport.convertToPdfPoint(leftPx + rect.width, topPx + rect.height);
-            // In PDF coords, y goes up from bottom, but PyMuPDF rects are x0,y0,x1,y1 strictly ordered:
-            const x0 = Math.min(pt1[0], pt2[0]);
-            const x1 = Math.max(pt1[0], pt2[0]);
-            const y0 = Math.min(pt1[1], pt2[1]);
-            const y1 = Math.max(pt1[1], pt2[1]);
-            
-            // Pad slightly for better erasure
-            deletedBlockBboxList.push([x0-1, y0-2, x1+1, y1+2]);
-        }
-        
-        span.contentEditable = "true";
-        span.style.outline = '2px solid var(--primary)';
-        span.style.background = 'white';
-        span.style.color = span.style.color || window.getComputedStyle(span).color;
-        span.style.whiteSpace = 'pre-wrap'; // Fixes the space typing bug
-        span.style.minWidth = '20px'; // Ensure it doesn't collapse
-        span.focus();
-        
-        textTools.classList.remove('opacity-50', 'pe-none');
-        
-        // Update toolbar
-        const currentSizePx = parseFloat(window.getComputedStyle(span).fontSize); // px
-        // convert px back to pt approx for backend (pt = px * 0.75 / scale) roughly
-        sizeInput.value = Math.round(currentSizePx / currentViewport.scale) || 12;
-        
-        const rgbColor = window.getComputedStyle(span).color;
-        colorInput.value = rgbToHex(rgbColor) || "#000000";
-        
-        const currentFont = window.getComputedStyle(span).fontFamily.toLowerCase();
-        if (currentFont.includes('time') || currentFont.includes('serif')) fontSelect.value = 'times';
-        else if (currentFont.includes('cour') || currentFont.includes('mono')) fontSelect.value = 'courier';
-        else fontSelect.value = 'helvetica';
-        
-        span.addEventListener('input', trackChanges);
-    }
-    
-    function trackChanges() {
+    });
+
+    // -------------------------------------------------------------------------
+    // 5. ADD TEXT & TRACKING
+    // -------------------------------------------------------------------------
+    addTextBtn.addEventListener('click', () => {
+        if (!pdfDoc) return;
+        // Scroll to center roughly
+        const cx = scrollArea.scrollLeft + (scrollArea.clientWidth / 2) - 50;
+        const cy = scrollArea.scrollTop + (scrollArea.clientHeight / 2) - 20;
+
+        const sp = document.createElement('span');
+        sp.dataset.id = `new_${Date.now()}`;
+        sp.dataset.isNew = 'true';
+        sp.classList.add('draggable-handle');
+
+        sp.style.left = `${cx}px`;
+        sp.style.top = `${cy}px`;
+        sp.style.fontSize = `${16 * currentScale}px`;
+        sp.style.fontFamily = 'helvetica';
+        sp.style.color = '#000000';
+        sp.style.position = 'absolute';
+        sp.style.zIndex = '50';
+        sp.innerText = "Double click to edit";
+
+        textLayer.appendChild(sp);
+        sp.addEventListener('mousedown', handleSpanClick);
+
+        // Auto activate
+        handleSpanClick({ currentTarget: sp, preventDefault: () => { } });
+    });
+
+    function trackSpanChange() {
         if (!activeSpan) return;
-        
+        const pIdx = currentPageNum - 1;
+        if (!documentEdits[pIdx]) documentEdits[pIdx] = { edits: new Map(), deleted: [] };
+
         const rect = activeSpan.getBoundingClientRect();
-        const containerRect = canvasContainer.getBoundingClientRect();
-        const leftPx = rect.left - containerRect.left;
-        const topPx = rect.top - containerRect.top;
-        
-        const pt1 = currentViewport.convertToPdfPoint(leftPx, topPx);
-        const pt2 = currentViewport.convertToPdfPoint(leftPx + rect.width, topPx + rect.height);
-        
+        const crect = canvasContainer.getBoundingClientRect();
+
+        const pt1 = currentViewport.convertToPdfPoint(rect.left - crect.left, rect.top - crect.top);
+        const pt2 = currentViewport.convertToPdfPoint(rect.right - crect.left, rect.bottom - crect.top);
+
         const x0 = Math.min(pt1[0], pt2[0]);
         const x1 = Math.max(pt1[0], pt2[0]);
         const y0 = Math.min(pt1[1], pt2[1]);
         const y1 = Math.max(pt1[1], pt2[1]);
-        
-        // Clean text nodes from contenteditable artifacts
-        let rawText = activeSpan.textContent || activeSpan.innerText;
+
+        let rawText = activeSpan.innerText || activeSpan.textContent;
         rawText = rawText.replace(/\u00A0/g, " ");
 
-        editedBlocksMap.set(activeSpan.dataset.id, {
+        // If origText modified/moved, mark original bbox for deletion
+        if (activeSpan.dataset.isNew === 'false') {
+            const op1 = currentViewport.convertToPdfPoint(parseFloat(activeSpan.dataset.origLeft), parseFloat(activeSpan.dataset.origTop));
+            const odx = Math.min(op1[0], op1[0] + 50); // rough
+            const ody = Math.min(op1[1], op1[1] + 20);
+            // Append to deleted array uniquely
+            documentEdits[pIdx].deleted.push([Math.min(op1[0], op1[0] + 5), Math.min(op1[1], op1[1] - 5), Math.max(op1[0], op1[0] + 100), Math.max(op1[1], op1[1] + 20)]);
+        }
+
+        documentEdits[pIdx].edits.set(activeSpan.dataset.id, {
             text: rawText,
-            html: activeSpan.innerHTML, // NEW: Capture the formatted HTML
+            html: activeSpan.innerHTML,
             new_bbox: [x0, y0, x1, y1],
             fontFamilly: fontSelect.value,
             fontSize: parseInt(sizeInput.value),
@@ -282,277 +384,88 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function deactivateSpan() {
-        if (activeSpan) {
-            activeSpan.contentEditable = "false";
-            activeSpan.style.outline = 'none';
-            activeSpan.style.background = 'transparent';
-            activeSpan.removeEventListener('input', trackChanges);
-            // ensure it tracks on blur
-            trackChanges();
-            activeSpan = null;
-            textTools.classList.add('opacity-50', 'pe-none');
-        }
-    }
-
-    // Toolbar Listeners
-    fontSelect.addEventListener('change', () => {
-        if (activeSpan) {
-            let cssFont = 'sans-serif';
-            if(fontSelect.value === 'times') cssFont = 'serif';
-            if(fontSelect.value === 'courier') cssFont = 'monospace';
-            activeSpan.style.fontFamily = cssFont;
-            trackChanges();
-        }
-    });
-
-    sizeInput.addEventListener('change', () => {
-        if (activeSpan) {
-            const rawSize = parseInt(sizeInput.value);
-            // approximate display size
-            activeSpan.style.fontSize = `${rawSize * currentViewport.scale}px`;
-            trackChanges();
-        }
-    });
-
-    colorInput.addEventListener('input', () => {
-        if (activeSpan) {
-            activeSpan.style.color = colorInput.value;
-            trackChanges();
-        }
-    });
-
-    if(btnBold) {
-        btnBold.addEventListener('mousedown', (e) => {
-            e.preventDefault(); // prevent losing focus
-            document.execCommand('bold', false, null);
-            trackChanges();
-        });
-    }
-    if(btnItalic) {
-        btnItalic.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            document.execCommand('italic', false, null);
-            trackChanges();
-        });
-    }
-    if(btnUnderline) {
-        btnUnderline.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            document.execCommand('underline', false, null);
-            trackChanges();
-        });
+    function restoreEditsForPage(pIdx) {
+        if (!documentEdits[pIdx]) return;
+        // For simplicity, we just keep edits in memory. Re-rendering customized HTML 
+        // into the pdf.js generated <span> array is tricky without saving to backend first.
+        // In this MVP, we warn the user or just keep the state. (Canva clones usually auto-save).
     }
 
     // -------------------------------------------------------------------------
-    // 7. SAVE TO BACKEND
+    // 6. DELETE SEC PAGE & EXPORT
     // -------------------------------------------------------------------------
-    saveBtn.addEventListener('click', async () => {
+    btnDeletePage.addEventListener('click', async () => {
+        if (!pdfDoc || !confirm('Are you sure you want to permanently delete this page?')) return;
+
+        try {
+            // Optional: call API to drop page from memory
+            const res = await fetch('/api/delete_page', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: currentSessionId, page_num: currentPageNum - 1 })
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+
+            window.showToast?.('Page deleted.', 'success');
+
+            // Refetch the Document from the server so pdfjs updates page count
+            const fetchRes = await fetch(`/api/download_edit/${currentSessionId}`);
+            const buf = await fetchRes.arrayBuffer();
+            pdfDoc = await pdfjsLib.getDocument(new Uint8Array(buf)).promise;
+
+            // Adjust page number 
+            if (currentPageNum > pdfDoc.numPages) currentPageNum = Math.max(1, pdfDoc.numPages);
+            if (pdfDoc.numPages > 0) renderPage(currentPageNum);
+            else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                textLayer.innerHTML = '';
+            }
+        } catch (err) {
+            window.showToast?.('Delete failed: ' + err.message, 'error');
+        }
+    });
+
+    savePdfBtn.addEventListener('click', async () => {
         if (!currentSessionId) return;
-        if (editedBlocksMap.size === 0 && deletedBlockBboxList.length === 0) {
-            alert("No changes made on this page.");
-            return;
-        }
 
-        const btnText = saveBtn.querySelector('.btn-text');
-        const spinner = saveBtn.querySelector('.spinner');
-        saveBtn.disabled = true;
+        const btnText = savePdfBtn.querySelector('.btn-text');
+        const spinner = savePdfBtn.querySelector('.spinner');
+        savePdfBtn.disabled = true;
         btnText.textContent = 'Saving...';
         spinner.classList.remove('hidden');
 
+        deactivateSpan(); // ensure tracked
+
         try {
-            // Note: backend expects 0-indexed page num!
-            const payload = {
-                session_id: currentSessionId,
-                page_num: currentPageNum - 1, 
-                edits: Array.from(editedBlocksMap.values()),
-                deleted: deletedBlockBboxList
-            };
+            // Save iteratively for ALL pages that have edits
+            for (const [pIdxStr, dataObj] of Object.entries(documentEdits)) {
+                if (dataObj.edits.size === 0 && dataObj.deleted.length === 0) continue;
 
-            const res = await fetch('/api/save_edit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+                const payload = {
+                    session_id: currentSessionId,
+                    page_num: parseInt(pIdxStr),
+                    edits: Array.from(dataObj.edits.values()),
+                    deleted: dataObj.deleted
+                };
 
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
+                const res = await fetch('/api/save_edit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const resData = await res.json();
+                if (resData.error) throw new Error(resData.error);
+            }
 
-            // Successfully saved page changes. Download the whole doc.
+            // Finally, stream download
             window.location.href = `/api/download_edit/${currentSessionId}`;
 
-            // Clear out edits for next actions if they don't leave
-            editedBlocksMap.clear();
-            deletedBlockBboxList = [];
-
         } catch (err) {
-            console.error(err);
-            if (window.showToast) window.showToast("Failed to save changes: " + err.message, "error");
+            window.showToast?.("Error saving: " + err.message, "error");
         } finally {
-            saveBtn.disabled = false;
-            btnText.textContent = 'Save Changes';
-            spinner.classList.add('hidden');
-        }
-    });
-
-    // -------------------------------------------------------------------------
-    // 8. UTILS
-    // -------------------------------------------------------------------------
-    prevBtn.addEventListener('click', () => {
-        if (currentPageNum <= 1) return;
-        currentPageNum--;
-        renderPage(currentPageNum);
-    });
-
-    nextBtn.addEventListener('click', () => {
-        if (currentPageNum >= totalPages) return;
-        currentPageNum++;
-        renderPage(currentPageNum);
-    });
-
-    function updatePaginationUI() {
-        if (totalPages > 0) {
-            pageIndicator.textContent = `Page ${currentPageNum} / ${totalPages}`;
-            prevBtn.disabled = currentPageNum <= 1;
-            nextBtn.disabled = currentPageNum >= totalPages;
-        }
-    }
-
-    function rgbToHex(rgbStr) {
-        if (!rgbStr) return "#000000";
-        if (rgbStr.startsWith('#')) return rgbStr;
-        const matches = rgbStr.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)$/);
-        if (!matches) return "#000000";
-        return "#" +
-            ("0" + parseInt(matches[1]).toString(16)).slice(-2) +
-            ("0" + parseInt(matches[2]).toString(16)).slice(-2) +
-            ("0" + parseInt(matches[3]).toString(16)).slice(-2);
-    }
-
-    // -------------------------------------------------------------------------
-    // 9. PAGE MANAGEMENT
-    // -------------------------------------------------------------------------
-    managePagesBtn.addEventListener('click', () => {
-        openPagesModal();
-    });
-
-    closePagesModalBtn.addEventListener('click', () => {
-        pagesModal.classList.add('hidden');
-    });
-
-    addBlankModalBtn.addEventListener('click', () => {
-        pageOrder.push('BLANK');
-        renderPageListRow('BLANK', 'BLANK', pageOrder.length);
-    });
-
-    function openPagesModal() {
-        pagesModal.classList.remove('hidden');
-        pagesList.innerHTML = '';
-        pageOrder = [];
-        
-        for (let i = 0; i < totalPages; i++) {
-            pageOrder.push(i);
-            renderPageListRow(`Page ${i + 1}`, i, i + 1);
-        }
-
-        if (pagesSortable) pagesSortable.destroy();
-        pagesSortable = new Sortable(pagesList, {
-            animation: 150,
-            handle: '.page-drag-handle',
-            onEnd: () => {
-                syncPageOrder();
-            }
-        });
-    }
-
-    function renderPageListRow(title, originalValue, displayIndex) {
-        const div = document.createElement('div');
-        div.className = 'page-row';
-        div.style.display = 'flex';
-        div.style.justifyContent = 'space-between';
-        div.style.alignItems = 'center';
-        div.style.padding = '0.75rem';
-        div.style.background = 'white';
-        div.style.marginBottom = '0.5rem';
-        div.style.borderRadius = 'var(--radius-sm)';
-        div.style.border = '1px solid var(--border)';
-        div.dataset.value = originalValue;
-        
-        div.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 1rem;">
-                <span class="page-drag-handle" style="cursor: grab; color: var(--text-muted); font-size: 1.2rem;">&#x21c5;</span>
-                <span class="page-title-display"><strong>${displayIndex}.</strong> ${title}</span>
-            </div>
-            <button class="icon-btn text-error remove-page-btn" title="Delete Page" style="color: var(--error); border: none;">&times;</button>
-        `;
-        
-        const removeBtn = div.querySelector('.remove-page-btn');
-        removeBtn.addEventListener('click', () => {
-            div.remove();
-            syncPageOrder();
-        });
-        
-        pagesList.appendChild(div);
-    }
-
-    function syncPageOrder() {
-        const rows = pagesList.querySelectorAll('.page-row');
-        pageOrder = [];
-        rows.forEach((row, index) => {
-            pageOrder.push(row.dataset.value);
-            const titleDisplay = row.querySelector('.page-title-display');
-            let currentText = titleDisplay.textContent.split('.')[1] || ' Blank Page';
-            currentText = currentText.trim();
-            titleDisplay.innerHTML = `<strong>${index + 1}.</strong> ${currentText}`;
-        });
-    }
-
-    applyPagesBtn.addEventListener('click', async () => {
-        if (!currentSessionId) return;
-        
-        const btnText = applyPagesBtn.querySelector('.btn-text');
-        const spinner = applyPagesBtn.querySelector('.spinner');
-        applyPagesBtn.disabled = true;
-        btnText.textContent = 'Applying...';
-        spinner.classList.remove('hidden');
-
-        try {
-            const payload = {
-                session_id: currentSessionId,
-                new_order: pageOrder
-            };
-
-            const res = await fetch('/api/reorder_pages', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
-
-            // Re-fetch document into PDF.js
-            const url = `/api/get_pdf/${currentSessionId}?t=${Date.now()}`;
-            pdfDoc = await pdfjsLib.getDocument(url).promise;
-            totalPages = pdfDoc.numPages;
-            
-            // Go to page 1
-            currentPageNum = 1;
-            
-            // clear edits! If pages shift, their edits might mismatch.
-            editedBlocksMap.clear();
-            deletedBlockBboxList = [];
-            
-            await renderPage(currentPageNum);
-            
-            pagesModal.classList.add('hidden');
-
-        } catch (err) {
-            console.error(err);
-            if (window.showToast) window.showToast("Failed to apply page changes: " + err.message, "error");
-        } finally {
-            applyPagesBtn.disabled = false;
-            btnText.textContent = 'Apply';
+            savePdfBtn.disabled = false;
+            btnText.textContent = 'Export PDF';
             spinner.classList.add('hidden');
         }
     });

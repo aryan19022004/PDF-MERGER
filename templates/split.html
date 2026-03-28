@@ -2,40 +2,51 @@
 {% block title %}Split PDF - My PDF{% endblock %}
 
 {% block content %}
-<div class="text-center mb-4">
-    <h1 class="text-gradient">Split PDF</h1>
-    <p class="text-muted">Separate one page or a whole set for easy conversion into independent PDF files.</p>
+<div class="text-center mb-8 px-4">
+    <h1 class="text-4xl md:text-5xl font-extrabold font-heading text-slate-800 mb-4 text-gradient">Split PDF</h1>
+    <p class="text-[17px] text-slate-500 max-w-2xl mx-auto">Separate one page or a whole set for easy conversion into independent PDF files.</p>
 </div>
 
-<div class="upload-container">
-    <div id="split-upload-zone" class="upload-zone">
-        <i class="fa-solid fa-file-pdf"></i>
-        <h3>Choose PDF file</h3>
-        <p class="text-muted">or drop PDF here</p>
-        <input type="file" id="split-file-input" accept="application/pdf" class="hidden">
+<div class="max-w-[800px] w-full mx-auto px-4">
+    <!-- Active Upload State -->
+    <div id="split-upload-zone" class="relative group cursor-pointer w-full bg-white border-2 border-dashed border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50/50 rounded-2xl p-12 text-center transition-all duration-300">
+        <div class="w-20 h-20 mx-auto bg-indigo-50 text-primary rounded-2xl flex items-center justify-center text-4xl mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300">
+            <i class="fa-solid fa-file-pdf"></i>
+        </div>
+        <h3 class="text-2xl font-bold font-heading text-slate-800 mb-2">Choose PDF file</h3>
+        <p class="text-slate-500 font-medium">or drop PDF here</p>
+        <input type="file" id="split-file-input" accept="application/pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
     </div>
 
-    <form id="split-form" action="/split" method="POST" enctype="multipart/form-data" class="hidden mt-4">
+    <!-- Active Form View (Hidden until upload) -->
+    <form id="split-form" action="/split" method="POST" enctype="multipart/form-data" class="hidden mt-6 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl border border-slate-100 p-6 md:p-8">
         <!-- We keep a cloned file input hidden here to submit native FormData -->
         <input type="file" id="split-form-file" name="pdf_file" class="hidden">
 
-        <div class="file-item mb-4">
-            <div class="file-item-info">
-                <i class="fa-solid fa-file-pdf" style="color: var(--primary);"></i>
-                <span id="split-file-name">Document.pdf</span>
+        <h4 class="text-lg font-bold text-slate-800 mb-4 pb-3 border-b border-slate-100 flex items-center gap-2">
+            <i class="fa-solid fa-scissors text-indigo-400"></i> Split Options
+        </h4>
+
+        <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
+            <div class="flex items-center gap-4">
+                <i class="fa-solid fa-file-pdf text-2xl text-red-500"></i>
+                <span id="split-file-name" class="font-semibold text-slate-700">Document.pdf</span>
             </div>
-            <button type="button" class="btn-icon" id="remove-split-file"><i class="fa-solid fa-trash text-error"></i></button>
+            <button type="button" class="w-10 h-10 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors flex items-center justify-center" id="remove-split-file" title="Remove File">
+                <i class="fa-solid fa-trash"></i>
+            </button>
         </div>
 
-        <div style="margin-bottom: 2rem;">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Pages to Extract (e.g. 1-5, 8)</label>
-            <input type="text" name="pages" id="split-pages-input" placeholder="Leave empty to extract all pages individually" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 1rem; outline: none;">
+        <div class="mb-8">
+            <label class="block text-sm font-bold text-slate-700 mb-2">Pages to Extract</label>
+            <input type="text" name="pages" id="split-pages-input" placeholder="e.g. 1-5, 8 (Leave empty to extract all individually)" class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none font-medium text-slate-700">
         </div>
 
-        <div class="text-center">
-            <button type="submit" id="split-submit-btn" class="btn btn-primary" style="padding: 1rem 3rem; font-size: 1.25rem;">
+        <div class="flex justify-end">
+            <button type="submit" id="split-submit-btn" class="w-full sm:w-auto px-8 py-3.5 bg-primary hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/20 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 text-lg">
                 <span class="btn-text">Split PDF</span>
-                <svg class="spinner hidden" viewBox="0 0 50 50" style="width: 20px; height: 20px;">
+                <i class="fa-solid fa-arrow-right-long text-sm ms-1"></i>
+                <svg class="spinner hidden w-5 h-5 ml-2" viewBox="0 0 50 50">
                     <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke="#fff"></circle>
                 </svg>
             </button>

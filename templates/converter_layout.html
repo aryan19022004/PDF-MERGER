@@ -2,38 +2,42 @@
 {% block title %}{{ title }} - My PDF{% endblock %}
 
 {% block content %}
-<div class="text-center mb-4">
-    <h1 class="text-gradient">{{ title }}</h1>
-    <p class="text-muted">{{ subtitle }}</p>
+<div class="text-center mb-8 px-4">
+    <h1 class="text-4xl md:text-5xl font-extrabold font-heading text-slate-800 mb-4">{{ title }}</h1>
+    <p class="text-[17px] text-slate-500 max-w-2xl mx-auto">{{ subtitle }}</p>
 </div>
 
-<div class="upload-container">
-    <div id="conv-upload-zone" class="upload-zone">
-        <div style="font-size: 3rem; color: var(--primary); margin-bottom: 1rem;">
+<div class="max-w-[800px] w-full mx-auto px-4">
+    <!-- Active Upload State / Hidden initially -->
+    <div id="conv-upload-zone" class="relative group cursor-pointer w-full bg-white border-2 border-dashed border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50/50 rounded-2xl p-12 text-center transition-all duration-300">
+        <div class="w-20 h-20 mx-auto bg-indigo-50 text-primary rounded-2xl flex items-center justify-center text-4xl mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300">
             {{ icon|safe }}
         </div>
-        <h3>Choose files</h3>
-        <p class="text-muted">or drop files here</p>
-        <input type="file" id="conv-file-input" accept="{{ accept }}" multiple class="hidden">
+        <h3 class="text-2xl font-bold font-heading text-slate-800 mb-2">Choose files</h3>
+        <p class="text-slate-500 font-medium">or drag and drop them here</p>
+        <input type="file" id="conv-file-input" accept="{{ accept }}" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
     </div>
 
-    <form id="conv-form" action="{{ action }}" method="POST" enctype="multipart/form-data" class="hidden mt-4">
+    <!-- Active Form (Hidden until upload) -->
+    <form id="conv-form" action="{{ action }}" method="POST" enctype="multipart/form-data" class="hidden mt-6 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl border border-slate-100 p-6 md:p-8">
         <input type="file" id="conv-form-file" name="files" multiple class="hidden">
 
-        <div id="conv-file-list" class="file-list mb-4">
-            <!-- File names injected here -->
+        <h4 class="text-lg font-bold text-slate-800 mb-4 pb-3 border-b border-slate-100 flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-indigo-400"></i> Selected Files
+        </h4>
+
+        <div id="conv-file-list" class="flex flex-col gap-3 mb-6">
+            <!-- File items injected here -->
         </div>
 
-        <div class="text-center mb-4">
-            <button type="button" id="add-more-files-btn" class="btn btn-secondary small-btn">
-                <i class="fa-solid fa-plus"></i> Add more files
+        <div class="flex flex-col sm:flex-row items-center gap-4 justify-between mt-8">
+            <button type="button" id="add-more-files-btn" class="w-full sm:w-auto px-6 py-3 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold rounded-xl border border-slate-200 transition-colors flex items-center justify-center gap-2">
+                <i class="fa-solid fa-plus text-sm"></i> Add more files
             </button>
-        </div>
-
-        <div class="text-center">
-            <button type="submit" id="conv-submit-btn" class="btn btn-primary" style="padding: 1rem 3rem; font-size: 1.25rem;">
+            <button type="submit" id="conv-submit-btn" class="w-full sm:w-auto px-8 py-3.5 bg-primary hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/20 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 text-lg">
                 <span class="btn-text">Convert to {{ target_ext }}</span>
-                <svg class="spinner hidden" viewBox="0 0 50 50" style="width: 20px; height: 20px;">
+                <i class="fa-solid fa-arrow-right-long text-sm ms-1"></i>
+                <svg class="spinner hidden w-5 h-5 ml-2" viewBox="0 0 50 50">
                     <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke="#fff"></circle>
                 </svg>
             </button>

@@ -1,80 +1,130 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<section class="hero">
-    <h1 class="text-gradient">Every tool you need to work with PDFs</h1>
-    <p>Merge, Split, Convert and Edit PDFs securely and in an instant with our fast and completely free modern online toolkit.</p>
+<section class="max-w-7xl mx-auto px-4 py-12 md:py-20 text-center">
+    <h1 class="text-5xl md:text-7xl font-extrabold font-heading text-slate-800 mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary via-indigo-500 to-secondary leading-tight pb-2">
+        Every tool you need <br class="hidden md:block"> to work with PDFs
+    </h1>
+    <p class="text-[19px] md:text-xl text-slate-500 max-w-3xl mx-auto mb-10 leading-relaxed font-medium">
+        Merge, Split, Convert and Edit PDFs securely and in an instant with our fast and completely free modern online toolkit.
+    </p>
     
-    <div class="hero-ctas">
-        <a href="/merge" class="btn btn-primary"><i class="fa-solid fa-code-merge"></i> Merge PDF</a>
-        <a href="/split" class="btn btn-secondary"><i class="fa-solid fa-scissors"></i> Split PDF</a>
-        <a href="/pdf-to-word" class="btn btn-secondary"><i class="fa-solid fa-file-word"></i> PDF to Word</a>
+    <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+        <a href="/merge" class="w-full sm:w-auto px-8 py-4 bg-primary hover:bg-indigo-700 text-white font-semibold rounded-2xl shadow-lg shadow-indigo-600/30 transition-all hover:-translate-y-1 flex items-center justify-center gap-3 text-lg">
+            <i class="fa-solid fa-code-merge"></i> Merge PDF
+        </a>
+        <a href="/split" class="w-full sm:w-auto px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 border-2 border-slate-200 hover:border-indigo-300 font-semibold rounded-2xl shadow-sm transition-all hover:-translate-y-1 flex items-center justify-center gap-3 text-lg">
+            <i class="fa-solid fa-scissors text-indigo-500"></i> Split PDF
+        </a>
+        <a href="/pdf-to-word" class="w-full sm:w-auto px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 border-2 border-slate-200 hover:border-blue-300 font-semibold rounded-2xl shadow-sm transition-all hover:-translate-y-1 flex items-center justify-center gap-3 text-lg">
+            <i class="fa-solid fa-file-word text-blue-500"></i> PDF to Word
+        </a>
     </div>
 </section>
 
-<section class="tools-grid">
-    <!-- Existing Core Tools -->
-    <a href="/merge" class="tool-card">
-        <div class="tool-icon" style="color: var(--primary);"><i class="fa-solid fa-code-merge"></i></div>
-        <h3>Merge PDF</h3>
-        <p>Combine multiple PDFs into one unified document.</p>
-    </a>
-    <a href="/split" class="tool-card">
-        <div class="tool-icon" style="color: var(--secondary);"><i class="fa-solid fa-scissors"></i></div>
-        <h3>Split PDF</h3>
-        <p>Extract pages or separate one PDF into multiple files.</p>
-    </a>
-    
-    <!-- Editing -->
-    <a href="/edit" class="tool-card">
-        <div class="tool-icon" style="color: #14b8a6;"><i class="fa-solid fa-pen-to-square"></i></div>
-        <h3>Edit PDF</h3>
-        <p>Add text, edit existing words, and change formatting.</p>
-    </a>
+<section class="max-w-7xl mx-auto px-4 pb-20">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        <!-- Core Tools -->
+        <a href="/merge" class="group bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_10px_30px_-5px_rgba(79,70,229,0.15)] hover:border-indigo-200 transition-all duration-300 hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="w-16 h-16 rounded-2xl bg-indigo-50 text-primary flex items-center justify-center text-2xl mb-5 group-hover:bg-primary group-hover:text-white transition-colors duration-300">
+                <i class="fa-solid fa-code-merge"></i>
+            </div>
+            <h3 class="text-lg font-bold font-heading text-slate-800 mb-2 group-hover:text-primary transition-colors">Merge PDF</h3>
+            <p class="text-sm text-slate-500 font-medium leading-relaxed">Combine multiple PDFs into one unified document.</p>
+        </a>
+        
+        <a href="/split" class="group bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_10px_30px_-5px_rgba(139,92,246,0.15)] hover:border-violet-200 transition-all duration-300 hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="w-16 h-16 rounded-2xl bg-violet-50 text-violet-500 flex items-center justify-center text-2xl mb-5 group-hover:bg-violet-500 group-hover:text-white transition-colors duration-300">
+                <i class="fa-solid fa-scissors"></i>
+            </div>
+            <h3 class="text-lg font-bold font-heading text-slate-800 mb-2 group-hover:text-violet-600 transition-colors">Split PDF</h3>
+            <p class="text-sm text-slate-500 font-medium leading-relaxed">Extract pages or separate one PDF into multiple files.</p>
+        </a>
+        
+        <!-- Editing -->
+        <a href="/edit" class="group bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_10px_30px_-5px_rgba(20,184,166,0.15)] hover:border-teal-200 transition-all duration-300 hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="w-16 h-16 rounded-2xl bg-teal-50 text-teal-500 flex items-center justify-center text-2xl mb-5 group-hover:bg-teal-500 group-hover:text-white transition-colors duration-300">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </div>
+            <h3 class="text-lg font-bold font-heading text-slate-800 mb-2 group-hover:text-teal-600 transition-colors">Edit PDF</h3>
+            <p class="text-sm text-slate-500 font-medium leading-relaxed">Add text, edit existing words, and change formatting.</p>
+        </a>
+        
+        <a href="/page-number" class="group bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_10px_30px_-5px_rgba(168,85,247,0.15)] hover:border-purple-200 transition-all duration-300 hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="w-16 h-16 rounded-2xl bg-purple-50 text-purple-500 flex items-center justify-center text-2xl mb-5 group-hover:bg-purple-500 group-hover:text-white transition-colors duration-300">
+                <i class="fa-solid fa-list-ol"></i>
+            </div>
+            <h3 class="text-lg font-bold font-heading text-slate-800 mb-2 group-hover:text-purple-600 transition-colors">Number PDF</h3>
+            <p class="text-sm text-slate-500 font-medium leading-relaxed">Add custom page numbers gracefully across multiple pages.</p>
+        </a>
 
-    <!-- Converters -->
-    <a href="/pdf-to-excel" class="tool-card">
-        <div class="tool-icon icon-excel"><i class="fa-solid fa-file-excel"></i></div>
-        <h3>PDF to Excel</h3>
-        <p>Extract tables from PDFs to editable Excel sheets.</p>
-    </a>
-    <a href="/excel-to-pdf" class="tool-card">
-        <div class="tool-icon icon-pdf"><i class="fa-solid fa-file-pdf"></i></div>
-        <h3>Excel to PDF</h3>
-        <p>Convert Excel spreadsheets to PDF format.</p>
-    </a>
-    
-    <a href="/pdf-to-word" class="tool-card">
-        <div class="tool-icon icon-word"><i class="fa-solid fa-file-word"></i></div>
-        <h3>PDF to Word</h3>
-        <p>Convert PDFs to editable Word documents (.docx).</p>
-    </a>
-    <a href="/word-to-pdf" class="tool-card">
-        <div class="tool-icon icon-pdf"><i class="fa-solid fa-file-pdf"></i></div>
-        <h3>Word to PDF</h3>
-        <p>Make DOC and DOCX files easy to read by converting them to PDF.</p>
-    </a>
-    
-    <a href="/pdf-to-ppt" class="tool-card">
-        <div class="tool-icon icon-ppt"><i class="fa-solid fa-file-powerpoint"></i></div>
-        <h3>PDF to PPT</h3>
-        <p>Turn your PDF into an easy-to-edit PowerPoint presentation.</p>
-    </a>
-    <a href="/ppt-to-pdf" class="tool-card">
-        <div class="tool-icon icon-pdf"><i class="fa-solid fa-file-pdf"></i></div>
-        <h3>PPT to PDF</h3>
-        <p>Make your PowerPoint presentation easy to view as a PDF.</p>
-    </a>
-    
-    <a href="/pdf-to-jpg" class="tool-card">
-        <div class="tool-icon icon-img"><i class="fa-solid fa-file-image"></i></div>
-        <h3>PDF to JPG</h3>
-        <p>Extract images or save every page as a JPG.</p>
-    </a>
-    <a href="/jpg-to-pdf" class="tool-card">
-        <div class="tool-icon icon-pdf"><i class="fa-solid fa-file-pdf"></i></div>
-        <h3>JPG to PDF</h3>
-        <p>Convert JPG, PNG, or TIFF image files to a single PDF.</p>
-    </a>
+        <!-- Converters - Row 2 -->
+        <a href="/pdf-to-excel" class="group bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_10px_30px_-5px_rgba(16,185,129,0.15)] hover:border-emerald-200 transition-all duration-300 hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center text-2xl mb-5 group-hover:bg-emerald-500 group-hover:text-white transition-colors duration-300">
+                <i class="fa-solid fa-file-excel"></i>
+            </div>
+            <h3 class="text-lg font-bold font-heading text-slate-800 mb-2 group-hover:text-emerald-600 transition-colors">PDF to Excel</h3>
+            <p class="text-sm text-slate-500 font-medium leading-relaxed">Extract tables from PDFs to editable Excel sheets.</p>
+        </a>
+
+        <a href="/excel-to-pdf" class="group bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_10px_30px_-5px_rgba(239,68,68,0.15)] hover:border-red-200 transition-all duration-300 hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="w-16 h-16 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center text-2xl mb-5 group-hover:bg-red-500 group-hover:text-white transition-colors duration-300">
+                <i class="fa-solid fa-file-pdf"></i>
+            </div>
+            <h3 class="text-lg font-bold font-heading text-slate-800 mb-2 group-hover:text-red-600 transition-colors">Excel to PDF</h3>
+            <p class="text-sm text-slate-500 font-medium leading-relaxed">Convert Excel spreadsheets to PDF format.</p>
+        </a>
+        
+        <a href="/pdf-to-word" class="group bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_10px_30px_-5px_rgba(59,130,246,0.15)] hover:border-blue-200 transition-all duration-300 hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="w-16 h-16 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center text-2xl mb-5 group-hover:bg-blue-500 group-hover:text-white transition-colors duration-300">
+                <i class="fa-solid fa-file-word"></i>
+            </div>
+            <h3 class="text-lg font-bold font-heading text-slate-800 mb-2 group-hover:text-blue-600 transition-colors">PDF to Word</h3>
+            <p class="text-sm text-slate-500 font-medium leading-relaxed">Convert PDFs to editable Word documents (.docx).</p>
+        </a>
+
+        <a href="/word-to-pdf" class="group bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_10px_30px_-5px_rgba(239,68,68,0.15)] hover:border-red-200 transition-all duration-300 hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="w-16 h-16 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center text-2xl mb-5 group-hover:bg-red-500 group-hover:text-white transition-colors duration-300">
+                <i class="fa-solid fa-file-pdf"></i>
+            </div>
+            <h3 class="text-lg font-bold font-heading text-slate-800 mb-2 group-hover:text-red-600 transition-colors">Word to PDF</h3>
+            <p class="text-sm text-slate-500 font-medium leading-relaxed">Make DOC and DOCX files easy to read by converting them.</p>
+        </a>
+        
+        <!-- Converters - Row 3 -->
+        <a href="/pdf-to-ppt" class="group bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_10px_30px_-5px_rgba(249,115,22,0.15)] hover:border-orange-200 transition-all duration-300 hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="w-16 h-16 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center text-2xl mb-5 group-hover:bg-orange-500 group-hover:text-white transition-colors duration-300">
+                <i class="fa-solid fa-file-powerpoint"></i>
+            </div>
+            <h3 class="text-lg font-bold font-heading text-slate-800 mb-2 group-hover:text-orange-600 transition-colors">PDF to PPT</h3>
+            <p class="text-sm text-slate-500 font-medium leading-relaxed">Turn your PDF into an easy-to-edit PowerPoint presentation.</p>
+        </a>
+
+        <a href="/ppt-to-pdf" class="group bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_10px_30px_-5px_rgba(239,68,68,0.15)] hover:border-red-200 transition-all duration-300 hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="w-16 h-16 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center text-2xl mb-5 group-hover:bg-red-500 group-hover:text-white transition-colors duration-300">
+                <i class="fa-solid fa-file-pdf"></i>
+            </div>
+            <h3 class="text-lg font-bold font-heading text-slate-800 mb-2 group-hover:text-red-600 transition-colors">PPT to PDF</h3>
+            <p class="text-sm text-slate-500 font-medium leading-relaxed">Make your PowerPoint presentation easy to view as a PDF.</p>
+        </a>
+        
+        <a href="/pdf-to-jpg" class="group bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_10px_30px_-5px_rgba(139,92,246,0.15)] hover:border-violet-200 transition-all duration-300 hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="w-16 h-16 rounded-2xl bg-violet-50 text-violet-500 flex items-center justify-center text-2xl mb-5 group-hover:bg-violet-500 group-hover:text-white transition-colors duration-300">
+                <i class="fa-solid fa-file-image"></i>
+            </div>
+            <h3 class="text-lg font-bold font-heading text-slate-800 mb-2 group-hover:text-violet-600 transition-colors">PDF to JPG</h3>
+            <p class="text-sm text-slate-500 font-medium leading-relaxed">Extract images or save every page as a high-quality JPG.</p>
+        </a>
+
+        <a href="/jpg-to-pdf" class="group bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_10px_30px_-5px_rgba(239,68,68,0.15)] hover:border-red-200 transition-all duration-300 hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="w-16 h-16 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center text-2xl mb-5 group-hover:bg-red-500 group-hover:text-white transition-colors duration-300">
+                <i class="fa-solid fa-file-pdf"></i>
+            </div>
+            <h3 class="text-lg font-bold font-heading text-slate-800 mb-2 group-hover:text-red-600 transition-colors">JPG to PDF</h3>
+            <p class="text-sm text-slate-500 font-medium leading-relaxed">Convert JPG, PNG, or TIFF image files to a single PDF document.</p>
+        </a>
+
+    </div>
 </section>
 {% endblock %}

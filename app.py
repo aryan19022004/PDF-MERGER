@@ -72,8 +72,50 @@ def index():
 def merge_page():
     return render_template('merge.html')
 
-@app.route('/split')
+@app.route('/split', methods=['GET', 'POST'])
 def split_page():
+    if request.method == 'POST':
+        file = request.files.get('pdf_file')
+        if not file or file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+            
+        try:
+            reader = PdfReader(file)
+            total_pages = len(reader.pages)
+            pages_str = request.form.get('pages', '').strip()
+            
+            if pages_str:
+                # Extract specific pages into one PDF
+                selected_pages = parse_page_range(pages_str, total_pages)
+                writer = PdfWriter()
+                for p in selected_pages:
+                    writer.add_page(reader.pages[p])
+                    
+                output_pdf = BytesIO()
+                writer.write(output_pdf)
+                output_pdf.seek(0)
+                
+                return send_file(
+                    output_pdf,
+                    mimetype='application/pdf',
+                    as_attachment=True,
+                    download_name=f"split_{file.filename}"
+                )
+            else:
+                # Extract all individual pages into a ZIP
+                outputs = []
+                for p in range(total_pages):
+                    writer = PdfWriter()
+                    writer.add_page(reader.pages[p])
+                    out_io = BytesIO()
+                    writer.write(out_io)
+                    outputs.append((f"page_{p+1}.pdf", out_io.getvalue()))
+                    
+                return serve_converted_files(outputs, f"split_{os.path.splitext(file.filename)[0]}.zip")
+                
+        except Exception as e:
+            return jsonify({'error': str(e)}), 400
+            
     return render_template('split.html')
 
 @app.route('/edit')
@@ -502,6 +544,102 @@ def reorder_pages():
     
     return jsonify({'success': True, 'total_pages': len(new_doc)})
 
+@app.route('/api/delete_page', methods=['POST'])
+def delete_page():
+    data = request.json
+    session_id = data.get('session_id')
+    page_num = data.get('page_num')
+    
+    if session_id not in EDIT_SESSIONS:
+        return jsonify({'error': 'Session expired'}), 404
+        
+    doc = EDIT_SESSIONS[session_id]['doc']
+    
+    if page_num < 0 or page_num >= len(doc):
+        return jsonify({'error': 'Invalid page number'}), 400
+        
+    doc.delete_page(page_num)
+    
+    out_pdf = BytesIO()
+    doc.save(out_pdf, garbage=4, deflate=True)
+    EDIT_SESSIONS[session_id]['bytes'] = out_pdf.getvalue()
+    
+    return jsonify({'success': True, 'total_pages': len(doc)})
+
+@app.route('/page-number')
+def page_number():
+    return render_template('page_number.html')
+
+@app.route('/api/add_page_numbers', methods=['POST'])
+def add_page_numbers():
+    if 'pdf_file' not in request.files:
+        return jsonify({'error': 'PDF file is required'}), 400
+        
+    file = request.files['pdf_file']
+    range_str = request.form.get('range', '').strip()
+    prefix = request.form.get('prefix', '')
+    try:
+        start_num = int(request.form.get('start_num', 1))
+    except:
+        start_num = 1
+    position = request.form.get('position', 'bottom-center')
+    try:
+        size = int(request.form.get('size', 12))
+    except:
+        size = 12
+    color_hex = request.form.get('color', '#000000').lstrip('#')
+    
+    try:
+        doc = fitz.open(stream=file.read(), filetype="pdf")
+    except Exception as e:
+        return jsonify({'error': 'Invalid PDF file'}), 400
+        
+    total_pages = len(doc)
+    
+    if not range_str:
+        pages = list(range(total_pages))
+    else:
+        try:
+            pages = parse_page_range(range_str, total_pages)
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+            
+    try:
+        r = int(color_hex[0:2], 16) / 255.0
+        g = int(color_hex[2:4], 16) / 255.0
+        b = int(color_hex[4:6], 16) / 255.0
+        color_tuple = (r, g, b)
+    except:
+        color_tuple = (0, 0, 0)
+
+    for p in pages:
+        if 0 <= p < total_pages:
+            page = doc[p]
+            rect = page.rect
+            text_str = f"{prefix}{start_num}"
+            start_num += 1
+            
+            # Rough width approximation: character count * fontsize * 0.5
+            apx_width = len(text_str) * size * 0.5
+            
+            x = rect.width / 2.0 - apx_width / 2.0
+            y = rect.height - 30
+            
+            if position == 'bottom-right':
+                x = rect.width - 30 - apx_width
+            elif position == 'top-right':
+                x = rect.width - 30 - apx_width
+                y = 30 + size
+                
+            point = fitz.Point(x, y)
+            page.insert_text(point, text_str, fontname="helv", fontsize=size, color=color_tuple)
+            
+    out_pdf = BytesIO()
+    doc.save(out_pdf, garbage=4, deflate=True)
+    out_pdf.seek(0)
+    
+    return send_file(out_pdf, as_attachment=True, download_name='numbered_document.pdf', mimetype='application/pdf')
+
 @app.route('/api/save_edit', methods=['POST'])
 def save_edit():
     """Applies changes from the frontend to the PDF document."""
@@ -543,19 +681,21 @@ def save_edit():
         except:
             color_tuple = (0, 0, 0)
             
-        point = fitz.Point(bbox[0], bbox[3] - (fontsize * 0.2)) # Approximate bottom-left origin
-        
         try:
-            # We attempt to insert the text.
-            # PyMuPDF usually requires built-in fonts (helv, cour, ti-ro) or path.
-            # Map common font requests to builtins
-            fitz_font = "helv"
-            if "courier" in fontname.lower() or "mono" in fontname.lower():
-                fitz_font = "cour"
-            elif "times" in fontname.lower() or "serif" in fontname.lower():
-                fitz_font = "ti-ro"
+            # We attempt to insert the text with native spacing relying on HTML logic
+            # This handles Bold, Italic, and normal spans exactly as they looked
+            css = f"font-family: {fontname}; font-size: {fontsize}px; color: #{color_hex};"
+            html = edit.get('html', text)
+            if not html.startswith('<'):
+                html = f"<div style='{css}'>{html}</div>"
+            else:
+                html = f"<div style='{css}'>{html}</div>"
                 
-            page.insert_text(point, text, fontname=fitz_font, fontsize=fontsize, color=color_tuple)
+            # rect [x0, y0, x1, y1] given by tracking code
+            # We expand the right/bottom slightly to prevent word-wrapping constraints
+            y_offset = float(fontsize) * 0.2
+            rect = fitz.Rect(bbox[0], bbox[1], bbox[2] + 200, bbox[3] + y_offset + 50)
+            page.insert_htmlbox(rect, html, css=css)
         except Exception as e:
             print(f"Error inserting: {e}")
             

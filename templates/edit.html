@@ -1,133 +1,268 @@
 {% extends 'base.html' %}
-{% block title %}Edit PDF - My PDF{% endblock %}
+{% block title %}Edit PDF - Canva Style{% endblock %}
 
-{% block content %}
-<div class="text-center mb-4">
-    <h1 class="text-gradient">Edit PDF</h1>
-    <p class="text-muted">Add text, change styling, and manage pages directly in your browser.</p>
-</div>
-
-<div class="container-fluid max-w-7xl mx-auto px-4 pb-12">
-    <!-- Toolbar -->
-    <div class="bg-white rounded-lg shadow-sm border p-3 mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3" style="border: 1px solid var(--border);">
-        <div class="d-flex align-items-center gap-3">
-            <label class="btn btn-primary m-0" style="cursor: pointer;">
-                <i class="fa-solid fa-folder-open"></i> Open PDF
-                <input type="file" id="edit-pdf-input" accept="application/pdf" class="hidden">
-            </label>
-            <span id="edit-file-name" class="text-muted font-medium">No file selected</span>
-        </div>
-        
-        <!-- Text Styling Tools -->
-        <div id="text-tools" class="d-flex align-items-center gap-2 opacity-50 pe-none transition" style="pointer-events: none;">
-            <select id="font-family" class="form-select" style="padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-sm); outline: none;">
-                <option value="helvetica" selected>Helvetica</option>
-                <option value="times">Times</option>
-                <option value="courier">Courier</option>
-            </select>
-            <input type="number" id="font-size" value="12" style="width: 70px; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-sm); outline: none;">
-            <input type="color" id="text-color" value="#000000" style="width: 40px; height: 38px; padding: 0; border: none; cursor: pointer;">
-            
-            <div class="btn-group" style="display: flex; gap: 0.25rem;">
-                <button type="button" id="btn-bold" class="btn btn-secondary small-btn" title="Bold"><b>B</b></button>
-                <button type="button" id="btn-italic" class="btn btn-secondary small-btn" title="Italic"><i>I</i></button>
-                <button type="button" id="btn-underline" class="btn btn-secondary small-btn" title="Underline"><u>U</u></button>
-            </div>
-            
-            <div style="width: 1px; height: 30px; background: var(--border); margin: 0 0.5rem;"></div>
-            
-            <button type="button" id="delete-text-btn" class="btn-icon" title="Delete Selected Text" style="color: var(--error);">
-                <i class="fa-solid fa-trash"></i>
-            </button>
-        </div>
-
-        <div class="d-flex gap-2">
-            <button id="manage-pages-btn" class="btn btn-secondary" disabled>
-                <i class="fa-solid fa-layer-group"></i> Organize Pages
-            </button>
-            <button id="save-pdf-btn" class="btn btn-success" disabled style="background: var(--success); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: var(--radius-full); font-weight: 600; cursor: pointer;">
-                <span class="btn-text"><i class="fa-solid fa-download"></i> Save & Download</span>
-                <svg class="spinner hidden" viewBox="0 0 50 50" style="width: 20px; height: 20px;"><circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke="#fff"></circle></svg>
-            </button>
-        </div>
-    </div>
-
-    <!-- Main Workspace -->
-    <div class="d-flex gap-4" style="height: 75vh; align-items: stretch; display: flex;">
-        <!-- Thumbnail Sidebar -->
-        <div class="bg-surface rounded-lg border p-3 flex-shrink-0 hide-scrollbar" style="width: 200px; overflow-y: auto; border: 1px solid var(--border); background: var(--surface);">
-            <div id="page-list" class="d-flex flex-column gap-3">
-                <div class="text-center text-muted p-4" style="font-size: 0.9rem;">
-                    Upload a PDF to see thumbnails
-                </div>
-            </div>
-        </div>
-
-        <!-- Canvas Area -->
-        <div class="flex-grow-1 bg-surface rounded-lg border position-relative overflow-auto" id="canvas-scroll-area" style="border: 1px solid var(--border); background: #eef2f6; display: flex; justify-content: center; overflow: auto; padding: 2rem;">
-            <div id="canvas-container" style="position: relative; box-shadow: var(--shadow-lg); background: white;">
-                <canvas id="pdf-canvas"></canvas>
-                <div id="text-layer" class="textLayer" style="position: absolute; top:0; left:0; right:0; bottom:0; overflow: hidden; --scale-factor: 1;"></div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Page Management Modal -->
-<div id="page-modal" class="modal hidden" style="position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 1050; display: flex; align-items: center; justify-content: center;">
-    <div class="modal-content" style="background: white; border-radius: var(--radius-lg); width: 90%; max-width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
-        <div class="modal-header p-4 border-bottom d-flex justify-content-between align-items-center" style="border-bottom: 1px solid var(--border);">
-            <h3 class="m-0">Organize Pages</h3>
-            <button id="close-modal-btn" class="btn-icon"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div class="modal-body p-4 overflow-auto" style="flex: 1; min-height: 300px;">
-            <div class="mb-3 d-flex gap-2">
-                <button id="add-blank-btn" class="btn btn-secondary small-btn"><i class="fa-solid fa-file-circle-plus"></i> Add Blank Page</button>
-                <div class="text-muted small align-self-center ml-auto">Drag to reorder. Click trash to delete.</div>
-            </div>
-            <div id="modal-page-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1rem;">
-                <!-- Modals pages injected here -->
-            </div>
-        </div>
-        <div class="modal-footer p-4 border-top text-end" style="border-top: 1px solid var(--border);">
-            <button id="apply-pages-btn" class="btn btn-primary">
-                <span class="btn-text">Apply Changes</span>
-                <svg class="spinner hidden" viewBox="0 0 50 50"><circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke="#fff"></circle></svg>
-            </button>
-        </div>
-    </div>
-</div>
-
+{% block extra_head %}
 <style>
-/* Utilities for edit.html specifically */
-#text-layer span {
-    color: transparent; /* Makes original PDF text transparent, so we only see it when editable */
+/* Canva-like Application Layout */
+body {
+    background: #f0f2f5;
+    overflow: hidden; /* App feels planted */
+}
+
+.main-content {
+    padding: 0;
+}
+
+.editor-navbar {
+    background: white;
+    height: 60px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.editor-workspace {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 120px); /* Account for top nav and footer roughly */
+    position: relative;
+    background: #f0f2f5;
+}
+
+.canvas-viewport {
+    flex: 1;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+}
+
+#canvas-container {
+    position: relative;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+    background: white;
+    transition: width 0.2s, height 0.2s;
+    /* Dimensions will be set via JS inline based on PDF page */
+}
+
+/* Optional scale zoom utility */
+.zoom-controls {
+    display: flex;
+    align-items: center;
+    background: white;
+    border-radius: 8px;
+    padding: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.zoom-controls button {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1.1rem;
+    color: var(--text);
+    padding: 5px 10px;
+}
+
+.floating-toolbar {
     position: absolute;
-    white-space: pre;
+    top: -50px;
+    left: 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    z-index: 1000;
+    transition: opacity 0.2s;
+    opacity: 0;
+    pointer-events: none;
+    border: 1px solid var(--border);
+}
+
+.floating-toolbar.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.page-navigator {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border-radius: 20px;
+    padding: 8px 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border: 1px solid var(--border);
+}
+
+/* Overriding textLayer spans to be visible/editable naturally */
+#text-layer span {
+    position: absolute;
+    white-space: pre-wrap;
     cursor: text;
     transform-origin: 0% 0%;
+    /* They naturally pull the pdf colors, but we will force custom text 
+       to be easily selectable */
+    min-width: 10px;
+    min-height: 1em;
 }
-#text-layer span::selection {
-    background: rgba(0,0,255,0.2);
+
+#text-layer span.draggable-handle {
+    cursor: grab;
 }
-.thumb-wrapper {
-    cursor: pointer;
-    border: 2px solid transparent;
-    transition: all 0.2s;
-    position: relative;
-}
-.thumb-wrapper:hover {
-    border-color: var(--primary-hover);
-}
-.thumb-wrapper.active {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+
+#text-layer span.draggable-handle:active {
+    cursor: grabbing;
 }
 </style>
 {% endblock %}
 
+{% block content %}
+<div class="editor-navbar">
+    <div class="d-flex align-items-center gap-3">
+        <h4 class="m-0 text-gradient"><i class="fa-solid fa-wand-magic-sparkles"></i> PDF Editor</h4>
+        <span id="active-filename" class="text-muted small">No file opened</span>
+    </div>
+    
+    <div class="d-flex align-items-center gap-3">
+        <label class="btn btn-outline-primary btn-sm m-0" style="cursor:pointer;" title="Upload PDF">
+            <i class="fa-solid fa-folder-open"></i> Open PDF
+            <input type="file" id="edit-pdf-input" accept="application/pdf" class="hidden">
+        </label>
+        
+        <button id="add-text-btn" class="btn btn-primary btn-sm" disabled>
+            <i class="fa-solid fa-t"></i> Add Text
+        </button>
+        
+        <button id="add-pages-btn" class="btn btn-primary btn-sm" disabled>
+            <i class="fa-solid fa-list-ol"></i> Add Page Numbers
+        </button>
+
+        <button id="save-pdf-btn" class="btn btn-success btn-sm" disabled>
+            <span class="btn-text"><i class="fa-solid fa-download"></i> Export PDF</span>
+            <svg class="spinner hidden" viewBox="0 0 50 50" style="width:16px;height:16px;vertical-align:middle;margin-left:5px;"><circle cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke="#fff"></circle></svg>
+        </button>
+    </div>
+</div>
+
+<div class="editor-workspace">
+    <!-- Center Screen App Area -->
+    <div class="canvas-viewport" id="canvas-scroll-area">
+        <div id="canvas-container">
+            <!-- Ghostly Toolbar attached to selected text -->
+            <div id="floating-toolbar" class="floating-toolbar">
+                <select id="font-family" class="form-select form-select-sm" style="width: auto; height: 32px; font-size: 0.85rem;">
+                    <option value="helvetica" selected>Helvetica</option>
+                    <option value="times">Times</option>
+                    <option value="courier">Courier</option>
+                </select>
+                <input type="number" id="font-size" class="form-control form-control-sm" value="12" style="width: 60px; height: 32px;">
+                <input type="color" id="text-color" class="form-control form-control-color p-0" value="#000000" style="width: 32px; height: 32px; border:none;">
+                
+                <div class="btn-group">
+                    <button type="button" id="btn-bold" class="btn btn-outline-secondary btn-sm" title="Bold"><b>B</b></button>
+                    <button type="button" id="btn-italic" class="btn btn-outline-secondary btn-sm" title="Italic"><i>I</i></button>
+                    <button type="button" id="btn-underline" class="btn btn-outline-secondary btn-sm" title="Underline"><u>U</u></button>
+                </div>
+                
+                <button type="button" id="delete-text-btn" class="btn btn-outline-danger btn-sm" title="Delete Block">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+            
+            <canvas id="pdf-canvas"></canvas>
+            <!-- Important: --scale-factor handles font size multiplication -->
+            <div id="text-layer" class="textLayer" style="position: absolute; top:0; left:0; right:0; bottom:0; overflow: visible; --scale-factor: 1;"></div>
+        </div>
+    </div>
+    
+    <!-- Floating Navigator -->
+    <div class="page-navigator" id="page-navigator" style="opacity: 0.5; pointer-events: none;">
+        <button id="zoom-out-btn" class="btn btn-sm btn-link text-dark text-decoration-none"><i class="fa-solid fa-minus"></i></button>
+        <span id="zoom-level" class="fw-bold" style="font-size: 0.9rem; width: 45px; text-align:center;">100%</span>
+        <button id="zoom-in-btn" class="btn btn-sm btn-link text-dark text-decoration-none"><i class="fa-solid fa-plus"></i></button>
+        
+        <div style="width: 1px; height: 20px; background: var(--border); margin: 0 5px;"></div>
+        
+        <button id="prev-page-btn" class="btn btn-sm btn-light rounded-circle" style="width:30px;height:30px;padding:0;"><i class="fa-solid fa-chevron-left"></i></button>
+        <span id="page-indicator" class="fw-medium" style="font-size: 0.9rem; min-width: 80px; text-align: center;">Page 0 of 0</span>
+        <button id="next-page-btn" class="btn btn-sm btn-light rounded-circle" style="width:30px;height:30px;padding:0;"><i class="fa-solid fa-chevron-right"></i></button>
+        
+        <div style="width: 1px; height: 20px; background: var(--border); margin: 0 5px;"></div>
+        
+        <button id="delete-page-btn" class="btn btn-sm btn-outline-danger" title="Delete Current Page"><i class="fa-solid fa-trash"></i> Delete Page</button>
+    </div>
+</div>
+
+<!-- Page Number Modal -->
+<div id="page-number-modal" class="modal hidden" style="position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 1050; display: flex; align-items: center; justify-content: center;">
+    <div class="modal-content" style="background: white; border-radius: var(--radius-lg); width: 90%; max-width: 450px; display: flex; flex-direction: column;">
+        <div class="modal-header p-4 border-bottom d-flex justify-content-between align-items-center" style="border-bottom: 1px solid var(--border);">
+            <h4 class="m-0"><i class="fa-solid fa-list-ol text-primary"></i> Add Page Numbers</h4>
+            <button id="close-pagenum-modal" class="btn-icon"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body p-4">
+            <div style="margin-bottom: 1rem;">
+                <label style="display:block; font-weight:500; margin-bottom:5px;">Pages to Number</label>
+                <input type="text" id="pagenum-range" placeholder="e.g. 1-10, 2- (Leave empty for all)" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                <small class="text-muted">Type "2-" to skip the first cover page!</small>
+            </div>
+            
+            <div style="margin-bottom: 1rem; display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                    <label style="display:block; font-weight:500; margin-bottom:5px;">Format / Prefix</label>
+                    <input type="text" id="pagenum-prefix" value="Page " placeholder="e.g. Page " style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                </div>
+                <div style="flex: 1;">
+                    <label style="display:block; font-weight:500; margin-bottom:5px;">Start Count At</label>
+                    <input type="number" id="pagenum-start" value="1" min="1" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                </div>
+            </div>
+
+            <div style="margin-bottom: 1rem; display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                    <label style="display:block; font-weight:500; margin-bottom:5px;">Position</label>
+                    <select id="pagenum-pos" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                        <option value="bottom-center" selected>Bottom Center</option>
+                        <option value="bottom-right">Bottom Right</option>
+                        <option value="top-right">Top Right</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px; flex: 1;">
+                    <div style="flex:1;">
+                        <label style="display:block; font-weight:500; margin-bottom:5px;">Size</label>
+                        <input type="number" id="pagenum-size" value="12" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-weight:500; margin-bottom:5px;">Color</label>
+                        <input type="color" id="pagenum-color" value="#000000" style="width: 38px; height: 38px; padding: 0; border: none; cursor: pointer;">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer p-4 border-top text-end" style="border-top: 1px solid var(--border);">
+            <button id="apply-pagenum-btn" class="btn btn-primary" style="width: 100%;">
+                <span class="btn-text">Apply Page Numbers</span>
+                <svg class="spinner hidden" viewBox="0 0 50 50" style="width:16px;height:16px;vertical-align:middle;margin-left:5px;"><circle cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke="#fff"></circle></svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
 {% block extra_scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <script src="{{ url_for('static', filename='js/editor.js') }}"></script>
 {% endblock %}
