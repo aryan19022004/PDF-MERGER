@@ -11,10 +11,11 @@ from pypdf import PdfReader, PdfWriter
 import fitz  # PyMuPDF
 from PIL import Image
 from pdf2docx import Converter as PDF2Docx
-from docx2pdf import convert as docx2pdf_convert
 import pandas as pd
 from pptx import Presentation
 from pptx.util import Inches
+import platform
+import subprocess
 
 # Note: comtypes is Windows only
 try:
@@ -223,11 +224,17 @@ def api_word_to_pdf():
                 # Need to use abspath for docx2pdf
                 abs_in = os.path.abspath(docx_path)
                 abs_out = os.path.abspath(pdf_path)
-                docx2pdf_convert(abs_in, abs_out)
+                
+                if platform.system() == 'Windows':
+                    from docx2pdf import convert as docx2pdf_convert
+                    docx2pdf_convert(abs_in, abs_out)
+                else:
+                    subprocess.run(['libreoffice', '--headless', '--nologo', '--convert-to', 'pdf', '--outdir', tmpdir, abs_in], check=True)
+                
                 with open(abs_out, 'rb') as pf:
                     outputs.append((pdf_name, pf.read()))
             except Exception as e:
-                print(e)
+                print("Error converting Word to PDF:", e)
     return serve_converted_files(outputs, "converted_pdfs.zip")
 
 @app.route('/api/convert/pdf-to-excel', methods=['POST'])
@@ -311,20 +318,24 @@ def api_ppt_to_pdf():
             pdf_path = os.path.join(tmpdir, pdf_name)
             f.save(ppt_path)
             try:
-                import comtypes.client
-                powerpoint = comtypes.client.CreateObject("Powerpoint.Application")
-                # Using absolute paths for comtypes!
                 abs_in = os.path.abspath(ppt_path)
                 abs_out = os.path.abspath(pdf_path)
-                # Headless presentation save
-                deck = powerpoint.Presentations.Open(abs_in, WithWindow=False)
-                deck.SaveAs(abs_out, 32) # 32 is ppSaveAsPDF
-                deck.Close()
-                powerpoint.Quit()
+                
+                if platform.system() == 'Windows':
+                    import comtypes.client
+                    powerpoint = comtypes.client.CreateObject("Powerpoint.Application")
+                    # Headless presentation save
+                    deck = powerpoint.Presentations.Open(abs_in, WithWindow=False)
+                    deck.SaveAs(abs_out, 32) # 32 is ppSaveAsPDF
+                    deck.Close()
+                    powerpoint.Quit()
+                else:
+                    subprocess.run(['libreoffice', '--headless', '--nologo', '--convert-to', 'pdf', '--outdir', tmpdir, abs_in], check=True)
+                
                 with open(abs_out, 'rb') as pf:
                     outputs.append((pdf_name, pf.read()))
             except Exception as e:
-                print(e)
+                print("Error converting PPT to PDF:", e)
     return serve_converted_files(outputs, "converted_pdfs.zip")
 
 @app.route('/api/convert/jpg-to-pdf', methods=['POST'])

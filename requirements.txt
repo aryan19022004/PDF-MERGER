@@ -5,7 +5,8 @@ Pillow>=10.0.0
 python-pptx>=0.6.22
 PyMuPDF
 pdf2docx
-docx2pdf
-comtypes
+docx2pdf; sys_platform == 'win32'
+comtypes; sys_platform == 'win32'
 pandas
 openpyxl
+gunicorn
