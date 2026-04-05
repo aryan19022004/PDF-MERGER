@@ -6,7 +6,7 @@ from io import BytesIO
 import tempfile
 import shutil
 import zipfile
-from flask import Flask, request, send_file, render_template, jsonify, session
+from flask import Flask, request, send_file, render_template, jsonify, session, redirect, url_for
 from pypdf import PdfReader, PdfWriter
 import fitz  # PyMuPDF
 from PIL import Image
@@ -26,6 +26,47 @@ except ImportError:
 app = Flask(__name__)
 app.secret_key = 'super-secret-pdf-key'  # Needed for session
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max limit
+
+# ==========================================
+# ADS & ADMIN SYSTEM SETUP (MONGO & CLOUDINARY)
+# ==========================================
+from pymongo import MongoClient
+import cloudinary
+import cloudinary.uploader
+import bcrypt
+from functools import wraps
+
+MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/pdf_toolkit')
+try:
+    mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+    db = mongo_client.get_database()
+    ads_collection = db['ads']
+    admin_collection = db['admin']
+    
+    # Initialize Admin Default Password (@#aryantiwari$%)
+    if admin_collection.count_documents({}) == 0:
+        default_pw = b"@#aryantiwari$%"
+        hashed_pw = bcrypt.hashpw(default_pw, bcrypt.gensalt())
+        admin_collection.insert_one({"role": "admin", "password": hashed_pw})
+        print("Default Admin Credentials Generated.")
+except Exception as e:
+    print(f"MongoDB Configuration Warning: {e}")
+
+cloudinary.config(
+    cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', 'YOUR_CLOUD_NAME'),
+    api_key = os.environ.get('CLOUDINARY_API_KEY', 'YOUR_API_KEY'),
+    api_secret = os.environ.get('CLOUDINARY_API_SECRET', 'YOUR_API_SECRET'),
+    secure = True
+)
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('admin_logged_in'):
+            return redirect(url_for('admin_login'))
+        return f(*args, **kwargs)
+    return decorated_function
+# ==========================================
 
 # Dictionary to hold active editing sessions temporarily in memory
 EDIT_SESSIONS = {}
@@ -154,6 +195,190 @@ def jpg_to_pdf():
 def pdf_to_jpg():
     return render_template('pdf_to_jpg.html')
 
+@app.route('/protect-pdf')
+def protect_pdf():
+    return render_template('protect_pdf.html')
+
+@app.route('/unprotect-pdf')
+def unprotect_pdf():
+    return render_template('unprotect_pdf.html')
+
+@app.route('/pdf-to-ocr')
+def pdf_to_ocr():
+    return render_template('pdf_to_ocr.html')
+
+@app.route('/ocr-to-pdf')
+def ocr_to_pdf():
+    return render_template('ocr_to_pdf.html')
+
+@app.route('/watermark')
+def watermark_page():
+    return render_template('watermark.html')
+
+@app.route('/remove-pages')
+def remove_pages_page():
+    return render_template('remove_pages.html')
+
+@app.route('/add-pages')
+def add_pages_page():
+    return render_template('add_pages.html')
+
+@app.route('/rearrange')
+def rearrange_page():
+    return render_template('rearrange.html')
+
+# ==========================================
+# ADMIN & ADS ROUTES
+# ==========================================
+from datetime import datetime, timedelta
+from bson.objectid import ObjectId
+
+@app.route('/admin')
+def admin_route():
+    if session.get('admin_logged_in'):
+        return redirect(url_for('admin_dashboard'))
+    return render_template('admin_login.html')
+
+@app.route('/api/admin/login', methods=['POST'])
+def api_admin_login():
+    try:
+        data = request.json
+        password = data.get('password', '').encode('utf-8')
+        
+        admin_doc = admin_collection.find_one({"role": "admin"})
+        if not admin_doc:
+            return jsonify({"error": "Admin account not found"}), 500
+            
+        if bcrypt.checkpw(password, admin_doc['password']):
+            session['admin_logged_in'] = True
+            return jsonify({"success": True})
+        else:
+            return jsonify({"error": "Invalid password"}), 401
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/admin/dashboard')
+@admin_required
+def admin_dashboard():
+    return render_template('admin_dashboard.html')
+
+@app.route('/api/admin/change-password', methods=['POST'])
+@admin_required
+def api_change_password():
+    try:
+        data = request.json
+        new_password = data.get('new_password', '').encode('utf-8')
+        if len(new_password) < 6:
+            return jsonify({"error": "Password too short"}), 400
+            
+        hashed_pw = bcrypt.hashpw(new_password, bcrypt.gensalt())
+        admin_collection.update_one({"role": "admin"}, {"$set": {"password": hashed_pw}})
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/ads/create', methods=['POST'])
+@admin_required
+def api_create_ad():
+    try:
+        title = request.form.get('title', 'Untitled Ad')
+        redirect_link = request.form.get('redirectLink', '#')
+        duration_days = int(request.form.get('durationDays', 7))
+        skip_seconds = int(request.form.get('skipAfterSeconds', 5))
+        
+        file = request.files.get('image')
+        if not file:
+            return jsonify({"error": "Image is required"}), 400
+            
+        # Upload to Cloudinary
+        upload_result = cloudinary.uploader.upload(file)
+        image_url = upload_result.get('secure_url')
+        
+        now = datetime.utcnow()
+        expires_at = now + timedelta(days=duration_days)
+        
+        ad_data = {
+            "title": title,
+            "imageUrl": image_url,
+            "redirectLink": redirect_link,
+            "durationDays": duration_days,
+            "skipAfterSeconds": skip_seconds,
+            "createdAt": now,
+            "expiresAt": expires_at,
+            "viewsCount": 0,
+            "totalWatchTime": 0,
+            "clicks": 0
+        }
+        
+        ads_collection.insert_one(ad_data)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/ads/list', methods=['GET'])
+@admin_required
+def api_list_ads():
+    try:
+        ads = list(ads_collection.find().sort("createdAt", -1))
+        for ad in ads:
+            ad['_id'] = str(ad['_id'])
+        return jsonify({"ads": ads})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/ads/delete/<ad_id>', methods=['DELETE'])
+@admin_required
+def api_delete_ad(ad_id):
+    try:
+        ads_collection.delete_one({"_id": ObjectId(ad_id)})
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Public APIs for Ad Display
+@app.route('/api/ads/random', methods=['GET'])
+def api_random_ad():
+    try:
+        # Only fetch ads that haven't expired
+        now = datetime.utcnow()
+        pipeline = [
+            {"$match": {"expiresAt": {"$gt": now}}},
+            {"$sample": {"size": 1}}
+        ]
+        random_ads = list(ads_collection.aggregate(pipeline))
+        if not random_ads:
+            return jsonify({"ad": None})
+            
+        ad = random_ads[0]
+        ad['_id'] = str(ad['_id'])
+        return jsonify({"ad": {"_id": ad['_id'], "imageUrl": ad['imageUrl'], "redirectLink": ad['redirectLink'], "skipAfterSeconds": ad['skipAfterSeconds']}})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/ads/track', methods=['POST'])
+def api_track_ad():
+    try:
+        data = request.json
+        ad_id = data.get('ad_id')
+        action = data.get('action') # 'view' or 'click'
+        watch_time = data.get('watch_time', 0)
+        
+        if not ad_id:
+            return jsonify({"error": "ad_id required"}), 400
+            
+        update_query = {}
+        if action == 'view':
+            update_query = {"$inc": {"viewsCount": 1, "totalWatchTime": watch_time}}
+        elif action == 'click':
+            update_query = {"$inc": {"clicks": 1, "totalWatchTime": watch_time}}
+            
+        if update_query:
+            ads_collection.update_one({"_id": ObjectId(ad_id)}, update_query)
+            
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # ==========================================
 # TOOL ENDPOINTS 
 # ==========================================
@@ -213,8 +438,189 @@ def merge_pdfs():
     except Exception as e:
         return jsonify({'error': f"An error occurred: {str(e)}"}), 500
 
+@app.route('/api/protect', methods=['POST'])
+def api_protect():
+    file = request.files.get('pdf_file')
+    password = request.form.get('password')
+    if not file or not password:
+        return jsonify({'error': 'File and password are required'}), 400
+    try:
+        pdf_data = file.read()
+        doc = fitz.open(stream=pdf_data, filetype="pdf")
+        
+        # Save to buffer with encryption
+        out_buf = BytesIO()
+        doc.save(out_buf, encryption=fitz.PDF_ENCRYPT_AES_256, user_pw=password, owner_pw=password)
+        out_buf.seek(0)
+        
+        return send_file(
+            out_buf,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"Protected_{file.filename}"
+        )
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/unprotect', methods=['POST'])
+def api_unprotect():
+    file = request.files.get('pdf_file')
+    password = request.form.get('password', '')
+    if not file:
+        return jsonify({'error': 'File is required'}), 400
+    try:
+        pdf_data = file.read()
+        doc = fitz.open(stream=pdf_data, filetype="pdf")
+        
+        if doc.needs_pass:
+            if not doc.authenticate(password):
+                return jsonify({'error': 'Incorrect password'}), 403
+        
+        # Save decrypted
+        out_buf = BytesIO()
+        doc.save(out_buf)
+        out_buf.seek(0)
+        
+        return send_file(
+            out_buf,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"Unlocked_{file.filename}"
+        )
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/watermark', methods=['POST'])
+def api_watermark():
+    file = request.files.get('pdf_file')
+    text = request.form.get('text', 'Watermark')
+    position = request.form.get('position', 'center') # top, center, bottom
+    opacity = float(request.form.get('opacity', 0.5))
+    size = int(request.form.get('size', 48))
+    
+    if not file:
+        return jsonify({'error': 'File is required'}), 400
+        
+    try:
+        doc = fitz.open(stream=file.read(), filetype="pdf")
+        for page in doc:
+            rect = page.rect
+            x = rect.width / 2.0
+            
+            if position == 'top':
+                y = rect.height * 0.15
+            elif position == 'bottom':
+                y = rect.height * 0.85
+            else:
+                y = rect.height / 2.0
+                
+            text_length = fitz.get_text_length(text, fontsize=size)
+            x_pos = (rect.width - text_length) / 2.0
+            
+            # Using basic insert_text
+            page.insert_text(fitz.Point(x_pos, y), text, fontsize=size, fill_opacity=opacity, color=(0.5, 0.5, 0.5))
+            
+        out_buf = BytesIO()
+        doc.save(out_buf)
+        out_buf.seek(0)
+        return send_file(out_buf, mimetype='application/pdf', as_attachment=True, download_name=f"Watermarked_{file.filename}")
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/remove-pages', methods=['POST'])
+def api_remove_pages():
+    file = request.files.get('pdf_file')
+    pages_str = request.form.get('pages', '')
+    if not file or not pages_str:
+        return jsonify({'error': 'File and pages to remove are required'}), 400
+        
+    try:
+        doc = fitz.open(stream=file.read(), filetype="pdf")
+        total = len(doc)
+        
+        # Determine pages to remove
+        to_remove = set()
+        for part in pages_str.replace(' ', '').split(','):
+            if '-' in part:
+                s, e = part.split('-')
+                to_remove.update(range(int(s)-1, int(e)))
+            else:
+                to_remove.add(int(part)-1)
+                
+        to_keep = [i for i in range(total) if i not in to_remove and 0 <= i < total]
+        if not to_keep:
+            return jsonify({'error': 'Cannot remove all pages'}), 400
+            
+        doc.select(to_keep)
+        out_buf = BytesIO()
+        doc.save(out_buf)
+        out_buf.seek(0)
+        return send_file(out_buf, mimetype='application/pdf', as_attachment=True, download_name=f"Reduced_{file.filename}")
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/add-pages', methods=['POST'])
+def api_add_pages():
+    main_file = request.files.get('main_pdf')
+    addon_file = request.files.get('addon_file')
+    position = request.form.get('position', 'end') # start, end, custom
+    custom_page = int(request.form.get('custom_page', 1)) - 1
+    
+    if not main_file or not addon_file:
+        return jsonify({'error': 'Main PDF and Addon file are required'}), 400
+        
+    try:
+        main_doc = fitz.open(stream=main_file.read(), filetype="pdf")
+        addon_data = addon_file.read()
+        
+        addon_doc = fitz.open(stream=addon_data, filetype="pdf" if addon_file.filename.lower().endswith('.pdf') else None)
+        
+        # If it's an image, fitz can open it, but we convert it to PDF
+        if not addon_file.filename.lower().endswith('.pdf'):
+            pdfbytes = addon_doc.convert_to_pdf()
+            addon_doc = fitz.open("pdf", pdfbytes)
+            
+        insert_idx = len(main_doc)
+        if position == 'start':
+            insert_idx = 0
+        elif position == 'custom':
+            insert_idx = max(0, min(custom_page, len(main_doc)))
+            
+        main_doc.insert_pdf(addon_doc, start_at=insert_idx)
+        
+        out_buf = BytesIO()
+        main_doc.save(out_buf)
+        out_buf.seek(0)
+        return send_file(out_buf, mimetype='application/pdf', as_attachment=True, download_name=f"Expanded_{main_file.filename}")
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/rearrange', methods=['POST'])
+def api_rearrange():
+    file = request.files.get('pdf_file')
+    order_str = request.form.get('order') # e.g. "2,0,1" -> representing 0-based indices
+    if not file or not order_str:
+        return jsonify({'error': 'File and ordering are required'}), 400
+        
+    try:
+        doc = fitz.open(stream=file.read(), filetype="pdf")
+        order = [int(x.strip()) for x in order_str.split(',')]
+        
+        # Validate order length and bounds
+        if len(order) != len(doc):
+            pass # We could permit skipping pages, but usually rearrange means all pages
+            
+        valid_order = [p for p in order if 0 <= p < len(doc)]
+        
+        doc.select(valid_order)
+        out_buf = BytesIO()
+        doc.save(out_buf)
+        out_buf.seek(0)
+        return send_file(out_buf, mimetype='application/pdf', as_attachment=True, download_name=f"Rearranged_{file.filename}")
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # ==========================================
-# CONVERSION ROUTES (INDIVIDUAL)
 # ==========================================
 
 def serve_converted_files(outputs, zip_name):

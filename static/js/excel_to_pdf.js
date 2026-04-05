@@ -11,8 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentFile = null;
 
     // --- Upload Setup ---
-    uploadZone.addEventListener('click', () => {
-        if (!currentFile) fileInput.click();
+    uploadZone.addEventListener('click', (e) => {
+        if (!currentFile && e.target !== fileInput) fileInput.click();
     });
 
     uploadZone.addEventListener('dragover', (e) => {

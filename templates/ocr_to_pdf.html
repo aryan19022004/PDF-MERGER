@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}OCR to PDF - My PDF{% endblock %}
+
+{% block extra_head %}
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- Tesseract.js -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="text-center mb-8 px-4">
+    <h1 class="text-4xl md:text-5xl font-extrabold font-heading text-slate-800 mb-4 text-gradient">OCR Image to PDF</h1>
+    <p class="text-[17px] text-slate-500 max-w-2xl mx-auto">Upload an image containing text, extract it natively, and generate a clean PDF.</p>
+</div>
+
+<div class="max-w-[800px] w-full mx-auto px-4">
+    <!-- Active Upload State -->
+    <div id="ocrpdf-upload-zone" class="relative group cursor-pointer w-full bg-white border-2 border-dashed border-sky-300 hover:border-sky-500 hover:bg-sky-50/50 rounded-2xl p-12 text-center transition-all duration-300">
+        <div class="w-20 h-20 mx-auto bg-sky-50 text-sky-500 rounded-2xl flex items-center justify-center text-4xl mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300">
+            <i class="fa-solid fa-file-image"></i>
+        </div>
+        <h3 class="text-2xl font-bold font-heading text-slate-800 mb-2">Choose Scanned Image</h3>
+        <p class="text-slate-500 font-medium">or drop image (.jpg, .png)</p>
+        <input type="file" id="ocrpdf-file-input" accept="image/png, image/jpeg, image/jpg" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+    </div>
+
+    <!-- Active Form View (Hidden until upload) -->
+    <div id="ocrpdf-form" class="hidden mt-6 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl border border-slate-100 p-6 md:p-8">
+        
+        <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
+            <div class="flex items-center gap-4">
+                <i class="fa-solid fa-image text-2xl text-sky-500"></i>
+                <span id="ocrpdf-file-name" class="font-semibold text-slate-700">Image.jpg</span>
+            </div>
+            <button type="button" class="w-10 h-10 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors flex items-center justify-center" id="remove-ocrpdf-file" title="Remove File">
+                <i class="fa-solid fa-trash"></i>
+            </button>
+        </div>
+
+        <div id="ocrpdf-progress-container" class="hidden mb-6">
+            <div class="flex justify-between text-sm font-medium text-slate-600 mb-2">
+                <span id="ocrpdf-status-text">Initializing Engine...</span>
+                <span id="ocrpdf-percentage">0%</span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                <div id="ocrpdf-progress-bar" class="bg-sky-500 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Image Preview -->
+        <div id="ocrpdf-preview-container" class="hidden mb-6 flex justify-center">
+            <img id="ocrpdf-image-preview" src="" alt="Preview" class="max-h-[300px] object-contain border border-slate-200 rounded-lg shadow-sm">
+        </div>
+
+        <div class="flex justify-end border-slate-100 pb-2 mb-2 border-b">
+            <button type="button" id="start-ocrpdf-btn" class="w-full sm:w-auto px-8 py-3.5 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-xl shadow-lg shadow-sky-500/20 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 text-lg">
+                <span class="btn-text">Generate Secure PDF</span>
+                <i class="fa-solid fa-wand-magic-sparkles text-sm ms-1"></i>
+                <svg class="spinner hidden w-5 h-5 ml-2" viewBox="0 0 50 50">
+                    <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke="#fff"></circle>
+                </svg>
+            </button>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/ocr_to_pdf.js') }}"></script>
+{% endblock %}

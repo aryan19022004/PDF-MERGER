@@ -1,14 +1,24 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const uploadZone = document.getElementById('pagenum-upload-zone');
-    const fileInput = document.getElementById('pagenum-file-input');
-    const formSection = document.getElementById('pagenum-form');
-    const fileNameDisplay = document.getElementById('pagenum-file-name');
-    const removeBtn = document.getElementById('remove-pagenum-file');
-    const applyBtn = document.getElementById('apply-pagenum-btn');
+    const uploadZone = document.getElementById('wm-upload-zone');
+    const formSection = document.getElementById('wm-form');
+    const fileInput = document.getElementById('wm-file-input');
+    const formFileInput = document.getElementById('wm-form-file');
+    const fileNameDisplay = document.getElementById('wm-file-name');
+    const removeBtn = document.getElementById('remove-wm-file');
     
+    const submitBtn = document.getElementById('wm-submit-btn');
+    const btnText = submitBtn.querySelector('.btn-text');
+    const spinner = submitBtn.querySelector('.spinner');
+
+    const opacityInput = document.querySelector('input[name="opacity"]');
+    const opacityVal = document.getElementById('opacity-val');
+
+    opacityInput?.addEventListener('input', (e) => {
+        opacityVal.textContent = e.target.value;
+    });
+
     let currentFile = null;
 
-    // --- Upload Zone Logic ---
     uploadZone.addEventListener('click', (e) => {
         if (!currentFile && e.target !== fileInput) fileInput.click();
     });
@@ -45,37 +55,32 @@ document.addEventListener('DOMContentLoaded', () => {
         fileNameDisplay.textContent = file.name;
         uploadZone.classList.add('hidden');
         formSection.classList.remove('hidden');
+
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        formFileInput.files = dt.files;
     }
 
     removeBtn.addEventListener('click', () => {
         currentFile = null;
         fileInput.value = '';
+        formFileInput.value = '';
         formSection.classList.add('hidden');
         uploadZone.classList.remove('hidden');
     });
 
-    // --- Submit Flow ---
-    applyBtn.addEventListener('click', async () => {
-        if (!currentFile) return;
+    formSection.addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-        const formData = new FormData();
-        formData.append('pdf_file', currentFile);
-        formData.append('range', document.getElementById('pagenum-range').value);
-        formData.append('prefix', document.getElementById('pagenum-prefix').value);
-        formData.append('start_num', document.getElementById('pagenum-start').value);
-        formData.append('position', document.getElementById('pagenum-pos').value);
-        formData.append('size', document.getElementById('pagenum-size').value);
-        formData.append('color', document.getElementById('pagenum-color').value);
+        if (!formFileInput.files.length) return;
 
-        const btnText = applyBtn.querySelector('.btn-text');
-        const spinner = applyBtn.querySelector('.spinner');
-        
-        applyBtn.disabled = true;
-        btnText.textContent = 'Processing...';
+        submitBtn.disabled = true;
+        btnText.textContent = 'Applying...';
         spinner.classList.remove('hidden');
 
         try {
-            const response = await fetch('/api/add_page_numbers', {
+            const formData = new FormData(formSection);
+            const response = await fetch('/api/watermark', {
                 method: 'POST',
                 body: formData
             });
@@ -85,13 +90,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(data.error || 'Server processing failed');
             }
 
-            // It's a file blob download
             const blob = await response.blob();
             const downloadUrl = window.URL.createObjectURL(blob);
             
-            // Generate clean native output filename
             let baseName = currentFile.name.replace(/\.[^/.]+$/, "");
-            const finalName = `${baseName}_Numbered.pdf`;
+            const finalName = `${baseName}_Watermarked.pdf`;
 
             const link = document.createElement('a');
             link.href = downloadUrl;
@@ -101,13 +104,13 @@ document.addEventListener('DOMContentLoaded', () => {
             link.remove();
             window.URL.revokeObjectURL(downloadUrl);
             
-            window.showToast?.('Page numbers successfully added!', 'success');
+            window.showToast?.('Watermark added successfully!', 'success');
 
         } catch (err) {
             window.showToast?.('Error: ' + err.message, 'error');
         } finally {
-            applyBtn.disabled = false;
-            btnText.textContent = 'Add Page Numbers';
+            submitBtn.disabled = false;
+            btnText.textContent = 'Add Watermark';
             spinner.classList.add('hidden');
         }
     });

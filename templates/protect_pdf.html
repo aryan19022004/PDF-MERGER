@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %}Protect PDF - My PDF{% endblock %}
+
+{% block content %}
+<div class="text-center mb-8 px-4">
+    <h1 class="text-4xl md:text-5xl font-extrabold font-heading text-slate-800 mb-4 text-gradient">Protect PDF</h1>
+    <p class="text-[17px] text-slate-500 max-w-2xl mx-auto">Encrypt your PDF with a password to prevent unauthorized access.</p>
+</div>
+
+<div class="max-w-[800px] w-full mx-auto px-4">
+    <!-- Active Upload State -->
+    <div id="protect-upload-zone" class="relative group cursor-pointer w-full bg-white border-2 border-dashed border-red-300 hover:border-red-500 hover:bg-red-50/50 rounded-2xl p-12 text-center transition-all duration-300">
+        <div class="w-20 h-20 mx-auto bg-red-50 text-red-500 rounded-2xl flex items-center justify-center text-4xl mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300">
+            <i class="fa-solid fa-lock"></i>
+        </div>
+        <h3 class="text-2xl font-bold font-heading text-slate-800 mb-2">Choose PDF file</h3>
+        <p class="text-slate-500 font-medium">or drop PDF here</p>
+        <input type="file" id="protect-file-input" accept="application/pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+    </div>
+
+    <!-- Active Form View (Hidden until upload) -->
+    <form id="protect-form" action="/api/protect" method="POST" enctype="multipart/form-data" class="hidden mt-6 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl border border-slate-100 p-6 md:p-8">
+        <input type="file" id="protect-form-file" name="pdf_file" class="hidden">
+
+        <h4 class="text-lg font-bold text-slate-800 mb-4 pb-3 border-b border-slate-100 flex items-center gap-2">
+            <i class="fa-solid fa-shield-halved text-red-500"></i> Set Password
+        </h4>
+
+        <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
+            <div class="flex items-center gap-4">
+                <i class="fa-solid fa-file-pdf text-2xl text-red-500"></i>
+                <span id="protect-file-name" class="font-semibold text-slate-700">Document.pdf</span>
+            </div>
+            <button type="button" class="w-10 h-10 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors flex items-center justify-center" id="remove-protect-file" title="Remove File">
+                <i class="fa-solid fa-trash"></i>
+            </button>
+        </div>
+
+        <div class="mb-8 relative">
+            <label class="block text-sm font-bold text-slate-700 mb-2">Secure Password</label>
+            <div class="relative">
+                <input type="password" name="password" id="protect-password-input" placeholder="Type a strong password" class="w-full pl-4 pr-12 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all outline-none font-medium text-slate-700" required>
+                <button type="button" id="toggle-pw-btn" class="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
+                    <i class="fa-solid fa-eye"></i>
+                </button>
+            </div>
+            <p class="text-sm text-slate-500 mt-2 font-medium"><i class="fa-solid fa-circle-info text-amber-500 mr-1"></i> Make sure to remember this password; it cannot be recovered!</p>
+        </div>
+
+        <div class="flex justify-end">
+            <button type="submit" id="protect-submit-btn" class="w-full sm:w-auto px-8 py-3.5 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl shadow-lg shadow-red-500/20 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 text-lg">
+                <span class="btn-text">Protect PDF</span>
+                <i class="fa-solid fa-lock text-sm ms-1"></i>
+                <svg class="spinner hidden w-5 h-5 ml-2" viewBox="0 0 50 50">
+                    <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke="#fff"></circle>
+                </svg>
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/protect.js') }}"></script>
+{% endblock %}

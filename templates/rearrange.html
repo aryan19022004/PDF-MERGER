@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block title %}Rearrange PDF Pages - My PDF{% endblock %}
+
+{% block extra_head %}
+<!-- PDF.js for rendering thumbnails -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+</script>
+<!-- Sortable.js for Drag and Drop -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="text-center mb-8 px-4">
+    <h1 class="text-4xl md:text-5xl font-extrabold font-heading text-slate-800 mb-4 text-gradient">Rearrange Pages</h1>
+    <p class="text-[17px] text-slate-500 max-w-2xl mx-auto">Drag and drop page thumbnails to reorder your PDF exactly how you want it.</p>
+</div>
+
+<div class="max-w-[1000px] w-full mx-auto px-4">
+    <!-- Active Upload State -->
+    <div id="rr-upload-zone" class="relative group cursor-pointer w-full bg-white border-2 border-dashed border-amber-300 hover:border-amber-500 hover:bg-amber-50/50 rounded-2xl p-12 text-center transition-all duration-300">
+        <div class="w-20 h-20 mx-auto bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center text-4xl mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300">
+            <i class="fa-solid fa-layer-group"></i>
+        </div>
+        <h3 class="text-2xl font-bold font-heading text-slate-800 mb-2">Choose PDF file</h3>
+        <p class="text-slate-500 font-medium">or drop PDF here</p>
+        <input type="file" id="rr-file-input" accept="application/pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+    </div>
+
+    <!-- Interface (Hidden until upload) -->
+    <div id="rr-interface" class="hidden mt-6 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl border border-slate-100 p-6 md:p-8">
+        
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-slate-100 pb-6">
+            <div class="flex items-center gap-4">
+                <i class="fa-solid fa-file-pdf text-3xl text-red-500"></i>
+                <div>
+                    <span id="rr-file-name" class="font-bold text-slate-800 block text-lg">Document.pdf</span>
+                    <span id="rr-status" class="text-sm font-medium text-amber-500">Extracting Pages...</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button type="button" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors font-medium flex items-center gap-2" id="rr-reset-btn">
+                    <i class="fa-solid fa-trash"></i> Cancel
+                </button>
+                <button type="button" id="rr-submit-btn" disabled class="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-semibold rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2">
+                    <span class="btn-text">Save Order</span>
+                    <svg class="spinner hidden w-4 h-4" viewBox="0 0 50 50">
+                        <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke="#fff"></circle>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-6 min-h-[300px]">
+            <p class="text-center text-sm text-slate-500 font-medium mb-4"><i class="fa-solid fa-hand-pointer mr-1"></i> Drag and drop the tiles below to reorder.</p>
+            
+            <!-- Sortable Grid Container -->
+            <div id="rr-pages-grid" class="flex flex-wrap gap-4 justify-center">
+                <!-- Javascript will inject generic thumb tiles here -->
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<style>
+    /* Styling for the draggable items */
+    .rr-page-item {
+        cursor: grab;
+        background: #fff;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        padding: 0.5rem;
+        width: 140px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    }
+    .rr-page-item:hover {
+        border-color: #f59e0b;
+        transform: translateY(-2px);
+    }
+    
+    .rr-page-item canvas {
+        width: 100%;
+        height: auto;
+        border: 1px solid #f1f5f9;
+        border-radius: 0.25rem;
+        margin-bottom: 0.5rem;
+        pointer-events: none; /* Let drag pass through */
+    }
+
+    /* Class applied when holding the item */
+    .sortable-ghost {
+        opacity: 0.4;
+    }
+    
+    /* Class applied to the dragged item */
+    .sortable-drag {
+        cursor: grabbing !important;
+        box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
+        transform: scale(1.05) !important;
+    }
+</style>
+<script src="{{ url_for('static', filename='js/rearrange.js') }}"></script>
+{% endblock %}

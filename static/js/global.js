@@ -48,8 +48,13 @@ window.setupDropzone = function(zoneId, inputId, onFilesAdded) {
     const input = document.getElementById(inputId);
     if (!zone || !input) return;
 
-    zone.addEventListener('click', () => input.click());
-
+    zone.addEventListener('click', (e) => {
+        // Prevent click from bubbling back down if the user directly clicked the inset hidden input
+        if (e.target !== input) {
+            input.click();
+        }
+    });
+    
     zone.addEventListener('dragover', e => {
         e.preventDefault();
         zone.classList.add('dragover');

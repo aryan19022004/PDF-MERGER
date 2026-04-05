@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const fileInput = block.querySelector('.pdf-file-input');
         const nameSpan = block.querySelector('.file-name');
-        const labelBtn = block.querySelector('label.btn');
+        const labelBtn = block.querySelector('label');
         const rangeInput = block.querySelector('.range-input');
         const removeBtn = block.querySelector('.remove-block-btn');
 
@@ -48,13 +48,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleFileSelect(event, labelDiv, nameSpan) {
         const file = event.target.files[0];
         if (file && file.type === 'application/pdf') {
-            labelDiv.classList.add('btn-primary');
-            labelDiv.classList.remove('btn-secondary');
+            labelDiv.classList.add('bg-indigo-50', 'border-indigo-300', 'text-indigo-600');
             nameSpan.textContent = file.name;
+            nameSpan.classList.add('text-slate-800');
+            nameSpan.classList.remove('text-slate-500');
         } else {
-            labelDiv.classList.add('btn-secondary');
-            labelDiv.classList.remove('btn-primary');
+            labelDiv.classList.remove('bg-indigo-50', 'border-indigo-300', 'text-indigo-600');
             nameSpan.textContent = 'No file chosen';
+            nameSpan.classList.remove('text-slate-800');
+            nameSpan.classList.add('text-slate-500');
             window.showToast?.('Please select a valid PDF file.', 'error');
             event.target.value = ''; // Reset
         }

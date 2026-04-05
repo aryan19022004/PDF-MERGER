@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}Add Pages to PDF - My PDF{% endblock %}
+
+{% block content %}
+<div class="text-center mb-8 px-4">
+    <h1 class="text-4xl md:text-5xl font-extrabold font-heading text-slate-800 mb-4 text-gradient">Insert Pages to PDF</h1>
+    <p class="text-[17px] text-slate-500 max-w-2xl mx-auto">Insert another PDF or image into your document exactly where you need it.</p>
+</div>
+
+<div class="max-w-[800px] w-full mx-auto px-4">
+    <!-- Active Form View -->
+    <form id="add-form" action="/api/add-pages" method="POST" enctype="multipart/form-data" class="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl border border-slate-100 p-6 md:p-8">
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            <!-- Main PDF File -->
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-3"><i class="fa-solid fa-file-pdf text-red-500 mr-2"></i> 1. Select Main PDF</label>
+                <div id="main-upload-zone" class="relative group cursor-pointer w-full bg-slate-50 border-2 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/50 rounded-xl p-6 text-center transition-all duration-300">
+                    <i class="fa-solid fa-upload text-2xl text-slate-400 group-hover:text-blue-500 mb-2 transition-colors"></i>
+                    <p class="text-sm text-slate-500 font-medium" id="main-file-text">Click to upload Main PDF</p>
+                    <input type="file" name="main_pdf" id="main-file-input" accept="application/pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" required>
+                </div>
+            </div>
+
+            <!-- Addon File -->
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-3"><i class="fa-solid fa-file-circle-plus text-emerald-500 mr-2"></i> 2. Page to Insert</label>
+                <div id="addon-upload-zone" class="relative group cursor-pointer w-full bg-slate-50 border-2 border-dashed border-slate-300 hover:border-emerald-400 hover:bg-emerald-50/50 rounded-xl p-6 text-center transition-all duration-300">
+                    <i class="fa-solid fa-image text-2xl text-slate-400 group-hover:text-emerald-500 mb-2 transition-colors"></i>
+                    <p class="text-sm text-slate-500 font-medium" id="addon-file-text">Upload PDF or Image (.pdf, .jpg, .png)</p>
+                    <input type="file" name="addon_file" id="addon-file-input" accept="application/pdf, image/png, image/jpeg, image/jpg" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" required>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-xl">
+            <h4 class="text-md font-bold text-slate-700 mb-4"><i class="fa-solid fa-crosshairs text-sky-500 mr-2"></i> Where should we insert it?</h4>
+            <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                <label class="flex-1 relative cursor-pointer group">
+                    <input type="radio" name="position" value="end" class="peer sr-only" checked>
+                    <div class="p-4 border-2 border-slate-200 rounded-xl hover:bg-white peer-checked:border-sky-500 peer-checked:bg-sky-50 transition-all text-center">
+                        <i class="fa-solid fa-arrow-down-long text-slate-400 peer-checked:text-sky-500 block text-xl mb-2"></i>
+                        <span class="font-bold text-slate-600 peer-checked:text-sky-700">At the End</span>
+                    </div>
+                </label>
+
+                <label class="flex-1 relative cursor-pointer group">
+                    <input type="radio" name="position" value="start" class="peer sr-only">
+                    <div class="p-4 border-2 border-slate-200 rounded-xl hover:bg-white peer-checked:border-sky-500 peer-checked:bg-sky-50 transition-all text-center">
+                        <i class="fa-solid fa-arrow-up-long text-slate-400 peer-checked:text-sky-500 block text-xl mb-2"></i>
+                        <span class="font-bold text-slate-600 peer-checked:text-sky-700">At the Start</span>
+                    </div>
+                </label>
+
+                <label class="flex-1 relative cursor-pointer group">
+                    <input type="radio" name="position" value="custom" class="peer sr-only" id="radio-custom">
+                    <div class="p-4 border-2 border-slate-200 rounded-xl hover:bg-white peer-checked:border-sky-500 peer-checked:bg-sky-50 transition-all text-center">
+                        <i class="fa-solid fa-arrows-down-to-line text-slate-400 peer-checked:text-sky-500 block text-xl mb-2"></i>
+                        <span class="font-bold text-slate-600 peer-checked:text-sky-700">Custom Page</span>
+                    </div>
+                </label>
+            </div>
+
+            <div id="custom-page-container" class="hidden mt-4 pt-4 border-t border-slate-200">
+                <label class="block text-sm font-bold text-slate-700 mb-2">Insert before page number:</label>
+                <input type="number" name="custom_page" min="1" value="1" class="w-full sm:w-1/2 px-4 py-2 text-lg rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none">
+            </div>
+        </div>
+
+        <div class="flex justify-end">
+            <button type="submit" id="add-submit-btn" class="w-full sm:w-auto px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/20 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 text-lg">
+                <span class="btn-text">Insert Media</span>
+                <i class="fa-solid fa-check text-sm ms-1"></i>
+                <svg class="spinner hidden w-5 h-5 ml-2" viewBox="0 0 50 50">
+                    <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke="#fff"></circle>
+                </svg>
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/add_pages.js') }}"></script>
+{% endblock %}
