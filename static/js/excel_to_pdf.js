@@ -87,12 +87,33 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const sheetName = currentWorkbook.SheetNames[0];
                     const sheet = currentWorkbook.Sheets[sheetName];
-                    const range = XLSX.utils.decode_range(sheet['!ref'] || "A1:A1");
                     
-                    const totalCols = (range.e.c - range.s.c) + 1;
-                    const totalRows = (range.e.r - range.s.r) + 1;
+                    // Parse raw data to count active columns & rows (filtering out blank ones)
+                    const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+                    const isRowEmpty = row => !row || row.every(val => val === null || val === undefined || String(val).trim() === "");
+                    const cleanedRows = jsonData.filter(row => !isRowEmpty(row));
+                    let totalCols = 0;
+                    let totalRows = cleanedRows.length;
+                    if (totalRows > 0) {
+                        const numCols = Math.max(...cleanedRows.map(row => row.length));
+                        const activeColIndices = [];
+                        for (let c = 0; c < numCols; c++) {
+                            let isColNonEmpty = false;
+                            for (let r = 0; r < cleanedRows.length; r++) {
+                                const val = cleanedRows[r][c];
+                                if (val !== null && val !== undefined && String(val).trim() !== "") {
+                                    isColNonEmpty = true;
+                                    break;
+                                }
+                            }
+                            if (isColNonEmpty) {
+                                activeColIndices.push(c);
+                            }
+                        }
+                        totalCols = activeColIndices.length;
+                    }
                     
-                    fileMetaDisplay.textContent = `Found ${totalCols} columns and ${totalRows} rows in '${sheetName}'`;
+                    fileMetaDisplay.textContent = `Found ${totalCols} active columns and ${totalRows} active rows in '${sheetName}'`;
                     convertBtn.disabled = false;
                     resolve();
                 } catch (err) {
@@ -137,13 +158,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Convert sheet to JSON array of arrays
                 const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
                 
-                if (jsonData.length === 0) {
+                // Filter out empty rows and columns to prevent giant blank areas and endless empty pages
+                const isRowEmpty = row => !row || row.every(val => val === null || val === undefined || String(val).trim() === "");
+                const cleanedRows = jsonData.filter(row => !isRowEmpty(row));
+                
+                if (cleanedRows.length === 0) {
                     throw new Error("Spreadsheet is empty!");
                 }
 
+                // Identify columns containing at least one non-empty value
+                const numCols = Math.max(...cleanedRows.map(row => row.length));
+                const activeColIndices = [];
+                for (let c = 0; c < numCols; c++) {
+                    let isColNonEmpty = false;
+                    for (let r = 0; r < cleanedRows.length; r++) {
+                        const val = cleanedRows[r][c];
+                        if (val !== null && val !== undefined && String(val).trim() !== "") {
+                            isColNonEmpty = true;
+                            break;
+                        }
+                    }
+                    if (isColNonEmpty) {
+                        activeColIndices.push(c);
+                    }
+                }
+
+                // Filter row elements to only include active columns
+                const finalData = cleanedRows.map(row => {
+                    return activeColIndices.map(c => (row[c] !== undefined ? row[c] : ""));
+                });
+
+                if (finalData.length === 0) {
+                    throw new Error("Spreadsheet contains only empty rows or columns!");
+                }
+
                 // Assume first row is headers
-                const head = [jsonData[0]];
-                const body = jsonData.slice(1);
+                const head = [finalData[0]];
+                const body = finalData.slice(1);
 
                 // Add Document Title
                 doc.setFontSize(14);

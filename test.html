@@ -1,0 +1,392 @@
+# TCS NQT Verbal Ability Mock Test - Set 2
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCS NQT Verbal Mock Set 2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        .hidden { display: none; }
+        .quiz-card { background: white; border-radius: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
+        .progress-fill { transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Header info (Mock only) -->
+    <div id="quiz-header" class="hidden w-full max-w-3xl mb-4 flex justify-between items-center px-2">
+
+        <h2 class="text-slate-500 font-bold tracking-tight">TCS NQT MOCK <span class="text-indigo-600">VERBAL v2.0</span></h2>
+        <div id="timer-box" class="bg-white px-4 py-1 rounded-full shadow-sm border border-slate-200 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+            <span id="timer-display" class="font-mono font-bold text-slate-700">25:00</span>
+        </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-view" class="w-full max-w-xl quiz-card p-10 text-center">
+        <div class="mb-6 inline-flex p-4 rounded-2xl bg-indigo-50 text-indigo-600">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5s3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+        </div>
+        <h1 class="text-2xl font-bold text-slate-800 mb-2">Verbal Ability Mock Test 2</h1>
+        <p class="text-slate-500 mb-8">Focusing on 2026 Advanced & Foundation Patterns.</p>
+        
+        <div class="grid grid-cols-2 gap-4 mb-8 text-sm">
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+
+                <p class="text-slate-400 uppercase text-[10px] font-bold">Questions</p>
+                <p class="text-slate-700 font-bold">25 Items</p>
+            </div>
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <p class="text-slate-400 uppercase text-[10px] font-bold">Duration</p>
+                <p class="text-slate-700 font-bold">25 Minutes</p>
+            </div>
+        </div>
+
+        <button onclick="initQuiz()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-indigo-200">
+            Begin Evaluation
+        </button>
+    </div>
+
+    <!-- Quiz View -->
+    <div id="quiz-view" class="hidden w-full max-w-3xl quiz-card p-8">
+        <div class="flex items-center gap-4 mb-8">
+            <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div id="progress-bar" class="h-full bg-indigo-600 progress-fill" style="width: 0%"></div>
+
+            </div>
+            <span class="text-xs font-bold text-slate-400"><span id="q-number">1</span>/25</span>
+        </div>
+
+        <div id="q-content">
+            <p id="q-category" class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mb-2">Error Spotting</p>
+            <h3 id="q-text" class="text-lg text-slate-800 font-semibold leading-relaxed mb-6">...</h3>
+            
+            <div id="option-list" class="space-y-3 mb-10">
+                <!-- Buttons injected here -->
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center border-t border-slate-50 pt-6">
+            <button id="btn-prev" onclick="changeQ(-1)" class="text-slate-400 font-bold text-sm hover:text-slate-600 disabled:opacity-30">Previous</button>
+            <button id="btn-next" onclick="changeQ(1)" class="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 transition-all">Next</button>
+        </div>
+    </div>
+
+
+    <!-- Result View -->
+    <div id="result-view" class="hidden w-full max-w-4xl quiz-card p-10">
+        <div class="text-center mb-12">
+            <h1 class="text-3xl font-bold text-slate-800 mb-4">Results Overview</h1>
+            <div class="inline-block p-8 rounded-full bg-indigo-50 mb-4">
+                <span id="final-score" class="text-5xl font-black text-indigo-600">0</span>
+                <span class="text-indigo-300 text-2xl font-bold">/ 25</span>
+            </div>
+            <p id="summary-msg" class="text-slate-500 max-w-md mx-auto"></p>
+        </div>
+
+        <div class="space-y-4">
+            <h3 class="font-bold text-slate-800 border-b pb-2">Detailed Analysis</h3>
+            <div id="review-list" class="space-y-4 overflow-y-auto max-h-[400px] pr-2">
+                <!-- Review cards -->
+            </div>
+        </div>
+
+        <div class="mt-10 flex justify-center">
+
+            <button onclick="location.reload()" class="bg-slate-800 text-white px-10 py-4 rounded-2xl font-bold hover:bg-slate-900 shadow-xl">Back to Start</button>
+        </div>
+    </div>
+
+    <script>
+        const quizData = [
+            {
+                cat: "Error Spotting",
+                q: "Identify the erroneous part: 'I need to get to the house in Mainstreet Road by nine o'clock.'",
+                opts: ["I need to get to the house in", "Mainstreet Road by", "nine o'clock", "no error"],
+                ans: 0,
+                exp: "When referring to a location on a specific road, use 'on' or 'at' instead of 'in'."
+            },
+            {
+                cat: "Error Spotting",
+                q: "Find the error: 'Honestly speaking/I Like her not because/she is beautiful and charming/but that she is exceedingly kind.'",
+                opts: ["Honestly speaking", "I like her not because", "but that she is exceedingly kind", "she is beautiful and charming"],
+                ans: 2,
+                exp: "The correct pair for 'not because' is 'but because'. It should be 'but because she is exceedingly kind'."
+
+            },
+            {
+                cat: "Vocabulary - Synonym",
+                q: "Select the most appropriate synonym for the word 'KNAVE'.",
+                opts: ["Idealist", "Fraud", "Paragon", "Selfish"],
+                ans: 1,
+                exp: "Knave refers to a dishonest or unscrupulous man; 'Fraud' is the closest synonym."
+            },
+            {
+                cat: "Vocabulary - Synonym",
+                q: "Select the word closest in meaning to 'AUGUST'.",
+                opts: ["Common", "Ridiculous", "Dignified", "Petty"],
+                ans: 2,
+                exp: "In this context, 'August' means respected and impressive; 'Dignified' is the correct match."
+            },
+            {
+                cat: "Para Jumbles",
+                q: "Arrange the sentences: 1. Thus begins the search for relief: painkillers, yoga, herbs. 2. Most computer users develop disorders because they ignore warnings. 3. They keep pointing and dragging until tendons chafe.",
+                opts: ["1-2-3", "2-3-1", "3-1-2", "2-1-3"],
+
+                ans: 1,
+                exp: "2 introduces the problem (users ignoring warnings), 3 describes the action leading to disorder, and 1 provides the result (searching for relief)."
+            },
+            {
+                cat: "Para Jumbles",
+                q: "Rearrange: A. For example, EVs reduce carbon emissions. B. Sustainable practices mitigate damage. C. They also decrease dependence on fossil fuels. D. Hence, sustainability must be prioritized.",
+                opts: ["B-A-C-D", "A-B-C-D", "B-C-A-D", "C-B-A-D"],
+                ans: 0,
+                exp: "B introduces the topic, A gives an example, C adds a benefit of the example (They = EVs), and D concludes."
+            },
+            {
+                cat: "Para Jumbles",
+                q: "Rearrange: S1: Mother was overweight since childhood. S2: ? S3: ? S4: No use crying to grandma. P: She lectured me on meditation. Q: My food was regulated. R: Her memory of obesity kicked in.",
+                opts: ["RP", "QR", "PR", "RQ"],
+                ans: 3,
+                exp: "R explains the mother's motivation (memory of obesity) and Q is the direct effect (regulating food)."
+            },
+            {
+                cat: "Formal vs Informal",
+
+                q: "Which of the following is an example of formal language?",
+                opts: ["I'm not happy with the service.", "I appreciate you bringing this matter to my attention.", "We are sorry to tell you you're not selected.", "Can you help me out?"],
+                ans: 1,
+                exp: "Formal language avoids contractions like 'I'm' and uses professional vocabulary like 'appreciate'."
+            },
+            {
+                cat: "Sentence Completion",
+                q: "The woman was ______ and brought down by a ladder from the window and was being ______ in a hospital.",
+                opts: ["Conscious / Laughed", "Competing / Played", "Absent / Watered", "Conscious / Treated"],
+                ans: 3,
+                exp: "'Conscious' fits the rescue scenario, and 'treated' is the standard verb for medical care in a hospital."
+            },
+            {
+                cat: "Sentence Completion",
+                q: "Mamallapuram, also called Mahabalipuram, is famous for its rock-cut ______.",
+                opts: ["seaports", "shore temples", "city walls", "historic cities"],
+                ans: 1,
+                exp: "The passage specifies it is famous for its 'rock-cut shore temples'."
+            },
+
+            {
+                cat: "Sentence Completion",
+                q: "Poverty refers to deprived economic conditions and an inability to ______ basic necessities.",
+                opts: ["reach", "afford", "decide", "meet"],
+                ans: 3,
+                exp: "In context of necessities, one 'meets' or 'fulfills' requirements; 'meet' is the idiomatic fit here."
+            },
+            {
+                cat: "Error Spotting",
+                q: "Find the error: 'One Sunday when the lady had chained him up as usual... she suddenly thought she hears the cracking of a branch.'",
+                opts: ["lady had chained", "about half-way", "she suddenly thought", "she hears"],
+                ans: 3,
+                exp: "The sentence is in past tense ('had chained', 'thought'), so it should be 'she heard' instead of 'hears'."
+            },
+            {
+                cat: "Error Spotting",
+                q: "Identify the error: 'The moon was a good two hours higher than when I had last seen the sky, and the night was much light.'",
+                opts: ["The moon was a good", "higher than when", "the sky, and the night", "was much light"],
+                ans: 3,
+
+                exp: "It should be 'was much lighter' or 'very light'. 'Much light' is grammatically incorrect in this context."
+            },
+            {
+                cat: "Active/Passive Voice",
+                q: "Translate to Passive: 'The reluctant managers readily accepted his idea of innovation.'",
+                opts: [
+                    "Innovation was accepted by managers.",
+                    "His idea of innovation was readily accepted by the reluctant managers.",
+                    "The idea was accepted readily by the managers who were reluctant.",
+                    "Managers were reluctant but accepted the idea."
+                ],
+                ans: 1,
+                exp: "The correct passive form maintains the 'reluctant' adjective with the 'managers' and 'readily' with the verb."
+            },
+            {
+                cat: "Vocabulary - Antonym",
+                q: "Choose the word OPPOSITE to the meaning of 'BRITTLE'.",
+                opts: ["Meek", "Fragile", "Enduring", "Delicate"],
+                ans: 2,
+
+                exp: "'Brittle' means easily broken; 'Enduring' or 'Tough' means strong/unbreakable."
+            },
+            {
+                cat: "Vocabulary - Synonym",
+                q: "Select the option most nearly SIMILAR to 'ASSIDUOUS'.",
+                opts: ["Active", "Free", "Unoccupied", "Idle"],
+                ans: 0,
+                exp: "'Assiduous' means showing great care and perseverance; 'Active' (diligent) is the closest."
+            },
+            {
+                cat: "Para Jumbles",
+                q: "Rearrange: W: Sudden trembling. E: Aggravate life threats. K: Terrible disasters. T: Probably go unnoticed.",
+                opts: ["KETW", "WKET", "TEKW", "KEWT"],
+                ans: 1,
+                exp: "W describes the phenomenon, K categorizes it as a disaster, E adds consequences, and T provides a specific detail."
+            },
+            {
+                cat: "Paragraph Completion",
+                q: "Civilisation's progress is measured by success in meeting nature's challenges. (1)______. It is once a threat to evolution.",
+
+                opts: [
+                    "But advancement in Science is a mixed blessing.",
+                    "There has been awareness of consequences.",
+                    "We are bringing industrial progress to make the world better.",
+                    "The future of life on earth is endangered."
+                ],
+                ans: 2,
+                exp: "Sentence (C) fits as it describes the 'industrial progress' which the next sentence calls a 'threat'."
+            },
+            {
+                cat: "Error Spotting",
+                q: "Identify error: 'One of the cabinet members expressed doubt if the Chief Minister was an atheist.'",
+                opts: ["One of the cabinet members", "expressed doubt if", "Chief Minister was an atheist", "no error"],
+                ans: 1,
+                exp: "When a single fact is stated with doubt, use 'that'. 'If' is used for choices/multiple possibilities."
+            },
+            {
+                cat: "Idiom",
+                q: "In the performance, she was 'head and shoulders above' others. This means:",
+
+                opts: ["Taller than", "Superior to", "Jealous of", "Odd from"],
+                ans: 1,
+                exp: "The idiom means to be significantly better or superior."
+            },
+            {
+                cat: "Grammar",
+                q: "Cinderella sings very well and ______ does Peter.",
+                opts: ["even", "too", "also", "so"],
+                ans: 3,
+                exp: "'So' is used here to indicate that Peter also performs the action in the same way."
+            },
+            {
+                cat: "Grammar",
+                q: "The waiter hasn't brought the shake ______ I've been here an hour already.",
+                opts: ["up", "yet", "still", "till"],
+                ans: 1,
+                exp: "'Yet' is the correct adverb for something expected that hasn't happened in a negative sentence."
+            },
+            {
+
+                cat: "Sentence Completion",
+                q: "John made some ______ remarks to the President and was soundly chastised.",
+                opts: ["reverent", "irreverent", "flattering", "praise"],
+                ans: 1,
+                exp: "Since he was 'chastised' (punished), his remarks must have been 'irreverent' (disrespectful)."
+            },
+            {
+                cat: "Sentence Completion",
+                q: "She's got a sharp ______. She might just get into trouble.",
+                opts: ["Tongue", "Intellect", "Mouth", "Vision"],
+                ans: 0,
+                exp: "'Sharp tongue' is an idiom meaning a tendency to speak in a critical or harsh way."
+            },
+            {
+                cat: "Error Spotting",
+                q: "A lunar eclipse occurs. align so that Earth's shadow...",
+                opts: ["A lunar eclipse occurs", "align so that", "Earth's shadow", "no error"],
+                ans: 1,
+                exp: "The verb 'align' lacks a subject or should be 'aligns' if referring to a single entity."
+
+            }
+        ];
+
+        let currentIdx = 0;
+        let userChoices = new Array(25).fill(null);
+        let timeRemaining = 25 * 60;
+        let timerId;
+
+        function initQuiz() {
+            document.getElementById('start-view').classList.add('hidden');
+            document.getElementById('quiz-view').classList.remove('hidden');
+            document.getElementById('quiz-header').classList.remove('hidden');
+            renderQ();
+            startCountdown();
+        }
+
+        function renderQ() {
+            const data = quizData[currentIdx];
+            document.getElementById('q-number').innerText = currentIdx + 1;
+
+            document.getElementById('q-category').innerText = data.cat;
+            document.getElementById('q-text').innerText = data.q;
+            document.getElementById('progress-bar').style.width = ((currentIdx + 1) / 25 * 100) + '%';
+            
+            const list = document.getElementById('option-list');
+            list.innerHTML = '';
+            
+            data.opts.forEach((o, i) => {
+                const b = document.createElement('button');
+                const isSelected = userChoices[currentIdx] === i;
+                b.className = `w-full text-left p-4 rounded-xl border-2 transition-all duration-200 ${isSelected ? 'border-indigo-600 bg-indigo-50 text-indigo-700 font-bold' : 'border-slate-100 text-slate-600 hover:border-slate-200'}`;
+                b.innerText = o;
+                b.onclick = () => { userChoices[currentIdx] = i; renderQ(); };
+                list.appendChild(b);
+            });
+
+            document.getElementById('btn-prev').disabled = currentIdx === 0;
+            document.getElementById('btn-next').innerText = currentIdx === 24 ? 'Submit Test' : 'Next';
+        }
+
+
+        function changeQ(dir) {
+            if (dir === 1 && currentIdx === 24) return finalize();
+            currentIdx += dir;
+            renderQ();
+        }
+
+        function startCountdown() {
+            timerId = setInterval(() => {
+                timeRemaining--;
+                const m = Math.floor(timeRemaining / 60);
+                const s = timeRemaining % 60;
+                document.getElementById('timer-display').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+                if (timeRemaining <= 0) finalize();
+            }, 1000);
+        }
+
+        function finalize() {
+            clearInterval(timerId);
+            document.getElementById('quiz-view').classList.add('hidden');
+
+            document.getElementById('quiz-header').classList.add('hidden');
+            document.getElementById('result-view').classList.remove('hidden');
+
+            const score = userChoices.reduce((acc, val, i) => (val === quizData[i].ans ? acc + 1 : acc), 0);
+            document.getElementById('final-score').innerText = score;
+            
+            let msg = score >= 22 ? "Excellent! You are ready for the Prime/Digital roles." : (score >= 15 ? "Good score. Focus on speed to clear Foundation." : "More practice needed in Sentence Rearrangement.");
+            document.getElementById('summary-msg').innerText = msg;
+
+            document.getElementById('review-list').innerHTML = quizData.map((d, i) => {
+                const correct = userChoices[i] === d.ans;
+                return `
+                    <div class="p-4 rounded-xl border ${correct ? 'border-green-100 bg-green-50' : 'border-rose-100 bg-rose-50'}">
+                        <p class="text-sm font-bold text-slate-800 mb-2">${i+1}. ${d.q}</p>
+                        <p class="text-xs ${correct ? 'text-green-700' : 'text-rose-700'} mb-1">
+                            Your Answer: ${userChoices[i] !== null ? d.opts[userChoices[i]] : 'Skipped'}
+                        </p>
+                        ${!correct ? `<p class="text-xs text-green-700 font-bold mb-1">Correct: ${d.opts[d.ans]}</p>` : ''}
+                        <p class="text-[10px] text-slate-500 italic mt-2">Reason: ${d.exp}</p>
+
+                    </div>
+                `;
+            }).join('');
+        }
+    </script>
+</body>
+</html>
+
+

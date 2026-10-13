@@ -661,33 +661,52 @@ def api_pdf_to_word():
 def api_word_to_pdf():
     files = request.files.getlist('files')
     outputs = []
-    with tempfile.TemporaryDirectory() as tmpdir:
-        for f in files:
-            if not f.filename: continue
-            docx_path = os.path.join(tmpdir, f.filename)
-            pdf_name = os.path.splitext(f.filename)[0] + ".pdf"
-            pdf_path = os.path.join(tmpdir, pdf_name)
-            f.save(docx_path)
+    
+    # Initialize COM for Windows
+    co_init = False
+    if platform.system() == 'Windows':
+        try:
+            import pythoncom
+            pythoncom.CoInitialize()
+            co_init = True
+        except Exception as e:
+            print("Failed to initialize COM:", e)
+
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for f in files:
+                if not f.filename: continue
+                docx_path = os.path.join(tmpdir, f.filename)
+                pdf_name = os.path.splitext(f.filename)[0] + ".pdf"
+                pdf_path = os.path.join(tmpdir, pdf_name)
+                f.save(docx_path)
+                try:
+                    # Need to use abspath for docx2pdf
+                    abs_in = os.path.abspath(docx_path)
+                    abs_out = os.path.abspath(pdf_path)
+                    
+                    if platform.system() == 'Windows':
+                        from docx2pdf import convert as docx2pdf_convert
+                        docx2pdf_convert(abs_in, abs_out)
+                    else:
+                        subprocess.run(['libreoffice', '--headless', '--nologo', '--convert-to', 'pdf', '--outdir', tmpdir, abs_in], check=True)
+                    
+                    with open(abs_out, 'rb') as pf:
+                        outputs.append((pdf_name, pf.read()))
+                except Exception as e:
+                    print("Error converting Word to PDF:", e)
+    finally:
+        if co_init:
             try:
-                # Need to use abspath for docx2pdf
-                abs_in = os.path.abspath(docx_path)
-                abs_out = os.path.abspath(pdf_path)
-                
-                if platform.system() == 'Windows':
-                    from docx2pdf import convert as docx2pdf_convert
-                    docx2pdf_convert(abs_in, abs_out)
-                else:
-                    subprocess.run(['libreoffice', '--headless', '--nologo', '--convert-to', 'pdf', '--outdir', tmpdir, abs_in], check=True)
-                
-                with open(abs_out, 'rb') as pf:
-                    outputs.append((pdf_name, pf.read()))
-            except Exception as e:
-                print("Error converting Word to PDF:", e)
+                import pythoncom
+                pythoncom.CoUninitialize()
+            except Exception:
+                pass
+
     return serve_converted_files(outputs, "converted_pdfs.zip")
 
 @app.route('/api/convert/pdf-to-excel', methods=['POST'])
 def api_pdf_to_excel():
-    import pdfplumber
     files = request.files.getlist('files')
     outputs = []
     for f in files:
@@ -695,14 +714,24 @@ def api_pdf_to_excel():
         try:
             excel_name = os.path.splitext(f.filename)[0] + ".xlsx"
             out_io = BytesIO()
-            with pdfplumber.open(f) as pdf:
-                writer = pd.ExcelWriter(out_io, engine='openpyxl')
-                for i, page in enumerate(pdf.pages):
-                    table = page.extract_table()
-                    if table:
-                        df = pd.DataFrame(table[1:], columns=table[0])
-                        df.to_excel(writer, sheet_name=f"Page_{i+1}", index=False)
-                writer.close()
+            doc = fitz.open(stream=f.read(), filetype="pdf")
+            writer = pd.ExcelWriter(out_io, engine='openpyxl')
+            has_sheets = False
+            for i, page in enumerate(doc):
+                tabs = page.find_tables()
+                if tabs.tables:
+                    table = tabs.tables[0]
+                    df = table.to_pandas()
+                    # Safe sheet name: must be <= 31 chars
+                    sheet_name = f"Page_{i+1}"[:31]
+                    df.to_excel(writer, sheet_name=sheet_name, index=False)
+                    has_sheets = True
+            
+            if not has_sheets:
+                df_empty = pd.DataFrame([["No tables found in this document"]], columns=["Info"])
+                df_empty.to_excel(writer, sheet_name="Info", index=False)
+                
+            writer.close()
             outputs.append((excel_name, out_io.getvalue()))
         except Exception as e:
             print(e)
@@ -710,7 +739,6 @@ def api_pdf_to_excel():
 
 @app.route('/api/convert/excel-to-pdf', methods=['POST'])
 def api_excel_to_pdf():
-    # Simplistic conversion: Excel -> HTML -> text for PDF
     files = request.files.getlist('files')
     outputs = []
     for f in files:
@@ -718,6 +746,9 @@ def api_excel_to_pdf():
         try:
             pdf_name = os.path.splitext(f.filename)[0] + ".pdf"
             df = pd.read_excel(f)
+            # Clean empty rows and columns
+            df = df.dropna(how='all', axis=0)
+            df = df.dropna(how='all', axis=1)
             doc = fitz.open()
             page = doc.new_page()
             text = df.to_string()
@@ -757,33 +788,60 @@ def api_pdf_to_ppt():
 def api_ppt_to_pdf():
     files = request.files.getlist('files')
     outputs = []
-    with tempfile.TemporaryDirectory() as tmpdir:
-        for f in files:
-            if not f.filename: continue
-            ppt_name = f.filename
-            ppt_path = os.path.join(tmpdir, ppt_name)
-            pdf_name = os.path.splitext(ppt_name)[0] + ".pdf"
-            pdf_path = os.path.join(tmpdir, pdf_name)
-            f.save(ppt_path)
+    
+    # Initialize COM for Windows
+    co_init = False
+    if platform.system() == 'Windows':
+        try:
+            import pythoncom
+            pythoncom.CoInitialize()
+            co_init = True
+        except Exception as e:
+            print("Failed to initialize COM:", e)
+
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for f in files:
+                if not f.filename: continue
+                ppt_name = f.filename
+                ppt_path = os.path.join(tmpdir, ppt_name)
+                pdf_name = os.path.splitext(ppt_name)[0] + ".pdf"
+                pdf_path = os.path.join(tmpdir, pdf_name)
+                f.save(ppt_path)
+                try:
+                    abs_in = os.path.abspath(ppt_path)
+                    abs_out = os.path.abspath(pdf_path)
+                    
+                    if platform.system() == 'Windows':
+                        import win32com.client
+                        powerpoint = None
+                        try:
+                            powerpoint = win32com.client.Dispatch("Powerpoint.Application")
+                            # Headless presentation save
+                            deck = powerpoint.Presentations.Open(abs_in, WithWindow=False)
+                            deck.SaveAs(abs_out, 32) # 32 is ppSaveAsPDF
+                            deck.Close()
+                        finally:
+                            if powerpoint:
+                                try:
+                                    powerpoint.Quit()
+                                except Exception:
+                                    pass
+                    else:
+                        subprocess.run(['libreoffice', '--headless', '--nologo', '--convert-to', 'pdf', '--outdir', tmpdir, abs_in], check=True)
+                    
+                    with open(abs_out, 'rb') as pf:
+                        outputs.append((pdf_name, pf.read()))
+                except Exception as e:
+                    print("Error converting PPT to PDF:", e)
+    finally:
+        if co_init:
             try:
-                abs_in = os.path.abspath(ppt_path)
-                abs_out = os.path.abspath(pdf_path)
-                
-                if platform.system() == 'Windows':
-                    import comtypes.client
-                    powerpoint = comtypes.client.CreateObject("Powerpoint.Application")
-                    # Headless presentation save
-                    deck = powerpoint.Presentations.Open(abs_in, WithWindow=False)
-                    deck.SaveAs(abs_out, 32) # 32 is ppSaveAsPDF
-                    deck.Close()
-                    powerpoint.Quit()
-                else:
-                    subprocess.run(['libreoffice', '--headless', '--nologo', '--convert-to', 'pdf', '--outdir', tmpdir, abs_in], check=True)
-                
-                with open(abs_out, 'rb') as pf:
-                    outputs.append((pdf_name, pf.read()))
-            except Exception as e:
-                print("Error converting PPT to PDF:", e)
+                import pythoncom
+                pythoncom.CoUninitialize()
+            except Exception:
+                pass
+
     return serve_converted_files(outputs, "converted_pdfs.zip")
 
 @app.route('/api/convert/jpg-to-pdf', methods=['POST'])
